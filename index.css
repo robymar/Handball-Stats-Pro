@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Reset y configuración base */
+* {
+  -webkit-tap-highlight-color: transparent;
+  /* Eliminar delay de 300ms en touch */
+  touch-action: manipulation;
+}
+
+/* Mejorar respuesta táctil en botones y elementos interactivos */
+button,
+a,
+[role="button"],
+[onclick] {
+  touch-action: manipulation;
+  cursor: pointer;
+  /* Asegurar área táctil mínima */
+  min-height: 44px;
+  min-width: 44px;
+}
+
+html {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  height: 100%;
+  overflow-x: hidden;
+  /* Habilitar scroll suave en dispositivos táctiles */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Scroll táctil suave para todos los contenedores con scroll */
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Ocultar scrollbar pero mantener funcionalidad */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Áreas táctiles mínimas para botones (44x44px recomendado por Apple/Google) */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Mejorar legibilidad en tablets */
+@media (min-width: 768px) {
+  body {
+    font-size: 16px;
+  }
+
+  /* Aumentar tamaño de botones en tablets */
+  button {
+    min-height: 48px;
+  }
+}
+
+/* Prevenir zoom en inputs en iOS */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Mejorar rendimiento de animaciones */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Asegurar que los contenedores flex permitan scroll */
+.flex-1 {
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Contenedor principal scrollable */
+.app-container {
+  height: 100vh;
+  height: 100dvh;
+  /* Usar dvh para mejor soporte en móviles */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mejorar scroll en tablas */
+.table-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+/* Prevenir problemas de scroll en modales */
+.modal-open {
+  overflow: hidden;
+}
+
+/* Mejorar espaciado táctil en listas */
+@media (max-width: 767px) {
+  .touch-list-item {
+    padding: 12px;
+    min-height: 56px;
+  }
+}
+
+/* Asegurar que los contenedores con altura completa funcionen */
+.h-full {
+  height: 100%;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}

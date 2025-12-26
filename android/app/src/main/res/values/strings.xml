@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Handball Stats Pro v1.1.56</string>
+    <string name="title_activity_main">Handball Stats Pro</string>
+    <string name="package_name">com.handballstats.pro</string>
+    <string name="custom_url_scheme">com.handballstats.pro</string>
+</resources>

@@ -1,0 +1,54 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# APK builds
+*.apk
+
+# Android build
+android/app/build
+android/app/release
+android/.gradle
+android/local.properties
+
+# Analysis and temporary files
+analysis_output.txt
+analisis_excel.json
+build-log.txt
+build-output.log
+metadata.json
+
+# Match data (optional - remove if you want to commit matches)
+partidos/
+
+# Capacitor
+.capacitor
+
+# IDE
+.idea/

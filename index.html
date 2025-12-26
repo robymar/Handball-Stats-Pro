@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>HandballStats Pro</title>
+  <link rel="manifest" href="./manifest.json" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="icon" type="image/jpeg" href="/icon.jpg" />
+  <link rel="apple-touch-icon" href="/icon.jpg" />
+  <!-- Todas las dependencias ahora son locales para funcionalidad offline -->
+
+  <link rel="stylesheet" href="/index.css">
+</head>
+
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen">
+  <div id="root" class="h-full"></div>
+  <!-- Entrada de la aplicación Vite -->
+  <script type="module" src="/index.tsx"></script>
+
+  <script>
+    // Registro simple de Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js')
+          .then(reg => console.log('SW registrado', reg))
+          .catch(err => console.log('SW error', err));
+      });
+    }
+  </script>
+</body>
+
+</html>
