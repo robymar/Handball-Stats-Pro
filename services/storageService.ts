@@ -57,11 +57,7 @@ export const saveTeam = async (team: Team, skipSync: boolean = false): Promise<v
             category: team.category,
             gender: team.gender,
             logo_url: team.logo,
-            // Not syncing players individually yet, keeping it simple or storing as json if schema allows?
-            // Schema defined 'teams' with explicit columns but not players JSON.
-            // Wait, schema in step 152 creates 'teams' table WITHOUT players column.
-            // We should probably store players in a related table OR add a jsonb column 'roster' to teams.
-            // Let's assume for now we just sync the basic info.
+            players: team.players // Now syncing players as JSONB
           });
         if (error) console.error("Supabase team sync error:", error);
         else console.log("Team synced to cloud");

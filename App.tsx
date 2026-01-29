@@ -20,6 +20,7 @@ import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, impor
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+import { App as CapacitorApp } from '@capacitor/app';
 
 // Declare XLSX global from CDN
 declare var XLSX: any;
@@ -65,6 +66,8 @@ enum InputMode {
 
     // Import
     IMPORT_ROSTER,
+    // Recover
+    SELECT_TEAM_FOR_RECOVER,
 }
 
 type ViewType = 'TEAM_SELECT' | 'SETUP' | 'MATCH' | 'STATS' | 'TIMELINE' | 'ROSTER' | 'INFO' | 'GLOBAL_STATS' | 'LOGIN';
@@ -282,15 +285,22 @@ const mapPositionString = (posStr: string): Position => {
 
 // --- COMPONENTS ---
 
-// Team Select View
+// Add Input component helper for cleaner code
+const SetupInput = ({ label, ...props }: any) => (
+    <div>
+        <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{label}</label>
+        <input {...props} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none" />
+    </div>
+);
 interface TeamSelectViewProps {
     teams: Team[];
     onSelectTeam: (team: Team) => void;
     onCreateTeam: (name: string, category: string, gender: 'MALE' | 'FEMALE', logo?: string, initialPlayers?: Player[]) => void;
     onDeleteTeam: (id: string) => void;
+    onUpdateTeam?: (team: Team) => void; // New prop
 }
-
-const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, onCreateTeam, onDeleteTeam }) => {
+const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
+    const { teams, onSelectTeam, onCreateTeam, onDeleteTeam, onUpdateTeam } = props;
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState('');
     const [newCategory, setNewCategory] = useState('');
@@ -308,6 +318,28 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, on
             } catch (err) {
                 console.error(err);
             }
+        }
+    };
+
+    // Edit Logic
+    const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
+    const longPressTimer = React.useRef<any>(null);
+
+    const handleTouchStart = (team: Team) => {
+        longPressTimer.current = setTimeout(() => {
+            setTeamToEdit(team);
+            setNewName(team.name);
+            setNewCategory(team.category);
+            setNewGender(team.gender);
+            setNewLogo(team.logo);
+            setIsCreating(true);
+        }, 1000); // 1 second long press
+    };
+
+    const handleTouchEnd = () => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
         }
     };
 
@@ -356,7 +388,42 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, on
             }
         }
 
-        onCreateTeam(newName, newCategory, newGender as 'MALE' | 'FEMALE', newLogo, parsedPlayers);
+        if (teamToEdit) {
+            // UPDATE EXISTING
+            const updatedTeam: Team = {
+                ...teamToEdit,
+                name: newName,
+                category: newCategory,
+                gender: newGender as 'MALE' | 'FEMALE',
+                logo: newLogo || teamToEdit.logo
+                // Players remain same unless we want to allow re-import (disabled for this iteration for simplicity)
+            };
+            await saveTeam(updatedTeam);
+            // We need to refresh parent list. Since onCreateTeam refreshes list in parent, we might need a prop or just rely on state?
+            // Actually, parent passes 'teams'. We need to call a prop to update.
+            // But onCreateTeam is typed for creation. Let's patch it or add onUpdateTeam.
+            // Hack: use onCreateTeam but handle id in parent? No, tricky.
+            // Best way: just modify localStorage here and call a refresh callback if available, or force reload.
+            // Since we are in child, let's just use window.location.reload() or rely on the fact that saving to LS/Supabase works.
+            // But the UI won't update immediately without prop.
+            // Let's assume onSelectTeam can handle it or we add onUpdateTeam prop in next iteration.
+            // Wait, I can't add prop easily without changing interface.
+            // I will assume onCreateTeam logic in parent handles re-fetching if I mock it?
+            // No, let's adding onUpdateTeam to props quickly in replacement.
+            // Actually, I'll just use the `saveTeam` and then trigger a reload via checking props.
+            // Let's modify the interface in chunk 3.
+
+            // For now, let's just trigger a reload of window to be safe and simple, or better:
+            // We call onUpdateTeam which I will add to props.
+            if (onUpdateTeam) {
+                onUpdateTeam(updatedTeam);
+            } else {
+                window.location.reload();
+            }
+        } else {
+            // CREATE NEW
+            onCreateTeam(newName, newCategory, newGender as 'MALE' | 'FEMALE', newLogo, parsedPlayers);
+        }
 
         // Reset
         setNewName('');
@@ -366,6 +433,7 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, on
         setImportFile(null);
         setFormErrors({});
         setIsCreating(false);
+        setTeamToEdit(null);
     };
 
     return (
@@ -378,7 +446,7 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, on
 
                 {isCreating ? (
                     <form onSubmit={handleSubmit} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 animate-in fade-in zoom-in-95">
-                        <h2 className="text-xl font-bold text-white mb-4">Crear Nuevo Equipo</h2>
+                        <h2 className="text-xl font-bold text-white mb-4">{teamToEdit ? 'Editar Equipo' : 'Crear Nuevo Equipo'}</h2>
 
                         <div className="flex gap-4 mb-4 items-start">
                             <label className="cursor-pointer w-24 h-24 rounded-full bg-slate-700 flex items-center justify-center border-2 border-dashed border-slate-500 hover:border-white transition-colors overflow-hidden relative group shrink-0">
@@ -454,14 +522,23 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = ({ teams, onSelectTeam, on
                         )}
 
                         <div className="flex gap-3">
-                            <button type="button" onClick={() => setIsCreating(false)} className="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-bold hover:bg-slate-600">Cancelar</button>
-                            <button type="submit" className="flex-1 py-3 bg-handball-blue text-white rounded-xl font-bold hover:bg-blue-600">Crear Equipo</button>
+                            <button type="button" onClick={() => { setIsCreating(false); setTeamToEdit(null); }} className="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-bold hover:bg-slate-600">Cancelar</button>
+                            <button type="submit" className="flex-1 py-3 bg-handball-blue text-white rounded-xl font-bold hover:bg-blue-600">{teamToEdit ? 'Guardar Cambios' : 'Crear Equipo'}</button>
                         </div>
                     </form>
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {teams.map(team => (
-                            <div key={team.id} onClick={() => onSelectTeam(team)} className="group relative bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-handball-blue cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-900/20 flex items-center gap-4">
+                            <div
+                                key={team.id}
+                                onClick={() => onSelectTeam(team)}
+                                onTouchStart={() => handleTouchStart(team)}
+                                onTouchEnd={handleTouchEnd}
+                                onMouseDown={() => handleTouchStart(team)}
+                                onMouseUp={handleTouchEnd}
+                                onMouseLeave={handleTouchEnd}
+                                className="group relative bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-handball-blue cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-900/20 flex items-center gap-4 select-none"
+                            >
                                 <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-600 shrink-0">
                                     {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : <Briefcase className="text-slate-500" />}
                                 </div>
@@ -1290,15 +1367,26 @@ interface TimelineViewProps {
     onDeleteEvent: (id: string) => void;
     onEditEvent: (event: MatchEvent) => void;
     onAddEvent: () => void;
+    onResetMatch: () => void;
 }
 
-const TimelineView: React.FC<TimelineViewProps> = ({ state, onDeleteEvent, onEditEvent, onAddEvent }) => (
+const TimelineView: React.FC<TimelineViewProps> = ({ state, onDeleteEvent, onEditEvent, onAddEvent, onResetMatch }) => (
     <div className="p-4 max-w-xl mx-auto min-h-full">
         <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-white flex items-center gap-2"><Clock /> Timeline del Partido</h2>
-            <button onClick={onAddEvent} className="bg-handball-blue hover:bg-blue-600 text-white p-2 rounded-lg transition-colors">
-                <Plus size={24} />
-            </button>
+            <div className="flex gap-2">
+                <button
+                    onClick={onResetMatch}
+                    className="bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 p-2 rounded-lg transition-colors flex items-center gap-2"
+                    title="Resetear Partido"
+                >
+                    <RefreshCw size={20} />
+                    <span className="text-sm font-bold">Reset</span>
+                </button>
+                <button onClick={onAddEvent} className="bg-handball-blue hover:bg-blue-600 text-white p-2 rounded-lg transition-colors">
+                    <Plus size={24} />
+                </button>
+            </div>
         </div>
         <div className="relative space-y-4">
             {state.events
@@ -1445,10 +1533,11 @@ interface SetupViewProps {
     // New props for Away Logo
     awayLogo: string | undefined;
     onAwayLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onSwitchLocality: (isHome: boolean) => void;
     teams: Team[];
 }
 
-const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, onLogoUpload, awayLogo, onAwayLogoUpload, onViewArchive, onSwitchTeam, currentTeamName, isEditing, onCancel, teams }) => (
+const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, onLogoUpload, awayLogo, onAwayLogoUpload, onViewArchive, onSwitchTeam, currentTeamName, isEditing, onCancel, teams, onSwitchLocality }) => (
     <div className="h-full flex items-center justify-center p-2 sm:p-4 bg-slate-900 overflow-y-auto">
         <div className="w-full max-w-xl space-y-2 sm:space-y-3">
             {/* Header / Config Bar */}
@@ -1511,7 +1600,9 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         <button
                             type="button"
-                            onClick={() => setForm(prev => ({ ...prev, isOurTeamHome: true }))}
+                            onClick={() => {
+                                if (!form.isOurTeamHome) onSwitchLocality(true);
+                            }}
                             className={`p-2.5 sm:p-3 rounded-lg font-bold text-sm sm:text-base transition-all ${form.isOurTeamHome
                                 ? 'bg-handball-blue text-white'
                                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
@@ -1521,7 +1612,9 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                         </button>
                         <button
                             type="button"
-                            onClick={() => setForm(prev => ({ ...prev, isOurTeamHome: false }))}
+                            onClick={() => {
+                                if (form.isOurTeamHome) onSwitchLocality(false);
+                            }}
                             className={`p-2.5 sm:p-3 rounded-lg font-bold text-sm sm:text-base transition-all ${!form.isOurTeamHome
                                 ? 'bg-handball-blue text-white'
                                 : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
@@ -1578,12 +1671,31 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Dur. (min)</label>
-                            <select name="regularDuration" value={form.regularDuration} onChange={(e) => setForm(f => ({ ...f, regularDuration: parseInt(e.target.value, 10) }))} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none">
-                                <option value="30">30 min</option>
-                                <option value="25">25 min</option>
-                                <option value="20">20 min</option>
-                                <option value="15">15 min</option>
-                            </select>
+                            <div className="flex gap-2">
+                                <select
+                                    name="regularDuration"
+                                    value={[30, 25, 20, 15].includes(form.regularDuration) ? form.regularDuration : 'custom'}
+                                    onChange={(e) => {
+                                        const val = e.target.value;
+                                        if (val !== 'custom') setForm(f => ({ ...f, regularDuration: parseInt(val, 10) }));
+                                    }}
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none"
+                                >
+                                    <option value="30">30 min (Senior)</option>
+                                    <option value="25">25 min (Cadete)</option>
+                                    <option value="20">20 min (Infantil)</option>
+                                    <option value="15">15 min (Alevin)</option>
+                                    <option value="custom">Otro...</option>
+                                </select>
+                                {![30, 25, 20, 15].includes(form.regularDuration) && (
+                                    <input
+                                        type="number"
+                                        value={form.regularDuration}
+                                        onChange={(e) => setForm(f => ({ ...f, regularDuration: parseInt(e.target.value, 10) || 0 }))}
+                                        className="w-20 bg-slate-900 border border-slate-700 rounded-lg p-2 text-center text-white font-bold"
+                                    />
+                                )}
+                            </div>
                         </div>
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Prórroga</label>
@@ -1844,6 +1956,148 @@ export default function App() {
         stateRef.current = state;
     }, [state]);
 
+    // --- DEEP LINK LISTENER ---
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
+                console.log('📱 App opened with URL:', url);
+
+                if (url.includes('handballstats://auth')) {
+                    const hashIndex = url.indexOf('#');
+                    const questionIndex = url.indexOf('?');
+
+                    try {
+                        if (hashIndex !== -1) {
+                            // --- FLUJO IMPLÍCITO (tokens directos en hash) ---
+                            const params = new URLSearchParams(url.substring(hashIndex + 1));
+                            const access_token = params.get('access_token');
+                            const refresh_token = params.get('refresh_token');
+                            const type = params.get('type');
+                            const error = params.get('error');
+                            const error_description = params.get('error_description');
+
+                            console.log('🔐 Deep Link Type:', type);
+
+                            // Verificar si hubo error en el deep link
+                            if (error) {
+                                console.error('❌ Error en deep link:', error, error_description);
+                                await Toast.show({
+                                    text: `Error: ${error_description || 'Error al confirmar el email'}`,
+                                    duration: 'long',
+                                    position: 'top'
+                                });
+                                return;
+                            }
+
+                            // Establecer sesión con los tokens
+                            if (access_token && refresh_token) {
+                                const { error: sessionError } = await supabase?.auth.setSession({
+                                    access_token,
+                                    refresh_token
+                                });
+
+                                if (sessionError) {
+                                    console.error('❌ Error al establecer sesión:', sessionError);
+                                    await Toast.show({
+                                        text: 'Error al iniciar sesión. Por favor intenta de nuevo.',
+                                        duration: 'long',
+                                        position: 'top'
+                                    });
+                                } else {
+                                    // Éxito - Mostrar mensaje según el tipo
+                                    let successMessage = '✅ Sesión iniciada correctamente.';
+
+                                    if (type === 'signup') {
+                                        successMessage = '✅ ¡Email confirmado!\n\nTu cuenta está activa. Ahora puedes sincronizar tus datos en la nube.';
+                                    } else if (type === 'recovery') {
+                                        successMessage = '✅ Enlace de recuperación válido.\n\nAhora puedes cambiar tu contraseña.';
+                                    } else if (type === 'email_change') {
+                                        successMessage = '✅ Email actualizado correctamente.';
+                                    }
+
+                                    console.log('✅ Sesión establecida:', type);
+                                    await Toast.show({
+                                        text: successMessage,
+                                        duration: 'long',
+                                        position: 'top'
+                                    });
+
+                                    // Redirigir a la vista de login/cloud después de 1 segundo
+                                    setTimeout(() => {
+                                        setView('LOGIN');
+                                    }, 1000);
+                                }
+                            }
+                        } else if (questionIndex !== -1) {
+                            // --- FLUJO PKCE (código de autorización en query) ---
+                            const params = new URLSearchParams(url.substring(questionIndex + 1));
+                            const code = params.get('code');
+                            const error = params.get('error');
+                            const error_description = params.get('error_description');
+
+                            console.log('🔐 PKCE Flow detected');
+
+                            // Verificar si hubo error
+                            if (error) {
+                                console.error('❌ Error en deep link PKCE:', error, error_description);
+                                await Toast.show({
+                                    text: `Error: ${error_description || 'Error al confirmar el email'}`,
+                                    duration: 'long',
+                                    position: 'top'
+                                });
+                                return;
+                            }
+
+                            // Intercambiar código por sesión
+                            if (code) {
+                                const { data, error: sessionError } = await supabase?.auth.exchangeCodeForSession(code);
+
+                                if (sessionError) {
+                                    console.error('❌ Error al intercambiar código:', sessionError);
+
+                                    // Verificar si el error es por enlace expirado
+                                    if (sessionError.message.includes('expired') || sessionError.message.includes('invalid')) {
+                                        await Toast.show({
+                                            text: '⚠️ Enlace expirado o inválido.\n\nPor favor solicita uno nuevo desde la app.',
+                                            duration: 'long',
+                                            position: 'top'
+                                        });
+                                    } else {
+                                        await Toast.show({
+                                            text: 'Error al procesar el enlace. Intenta de nuevo.',
+                                            duration: 'long',
+                                            position: 'top'
+                                        });
+                                    }
+                                } else {
+                                    console.log('✅ Código intercambiado exitosamente');
+                                    await Toast.show({
+                                        text: '✅ ¡Email confirmado correctamente!\n\nTu cuenta está activa.',
+                                        duration: 'long',
+                                        position: 'top'
+                                    });
+
+                                    // Redirigir a la vista de login/cloud
+                                    setTimeout(() => {
+                                        setView('LOGIN');
+                                    }, 1000);
+                                }
+                            }
+                        }
+                    } catch (err) {
+                        console.error('❌ Error procesando deep link:', err);
+                        await Toast.show({
+                            text: 'Error al procesar el enlace. Por favor intenta de nuevo.',
+                            duration: 'long',
+                            position: 'top'
+                        });
+                    }
+                }
+            });
+        }
+    }, []);
+
+
     // --- INIT: LOAD TEAMS ---
     useEffect(() => {
         setTeams(getTeams());
@@ -1954,6 +2208,55 @@ export default function App() {
         setCurrentTeam(newTeam);
         setSetupHomeLogo(newTeam.logo);
         setSetupForm(prev => ({ ...prev, homeTeam: newTeam.name }));
+
+        // Resetear el estado del partido con los jugadores del nuevo equipo
+        // SIEMPRE asignamos al equipo actual a state.players
+        const freshPlayers = newTeam.players.map(p => ({
+            ...p,
+            active: false,
+            playingTime: 0,
+            playingTimeByPeriod: {}
+        }));
+
+        setState({
+            metadata: {
+                id: generateId(),
+                ownerTeamId: newTeam.id,
+                date: new Date().toISOString(),
+                homeTeam: newTeam.name,
+                homeTeamLogo: newTeam.logo,
+                awayTeam: 'Rival',
+                awayTeamLogo: undefined,
+                location: '',
+                round: '',
+                isOurTeamHome: true,
+            },
+            config: DEFAULT_CONFIG,
+            timerSettings: { durationMinutes: DEFAULT_CONFIG.regularDuration, direction: DEFAULT_CONFIG.timerDirection },
+            currentPeriod: 1,
+            isPaused: true,
+            gameTime: DEFAULT_CONFIG.timerDirection === 'DOWN' ? DEFAULT_CONFIG.regularDuration * 60 : 0,
+            homeScore: 0,
+            awayScore: 0,
+            events: [],
+            resolvedSanctionIds: [],
+            players: freshPlayers, // SIEMPRE AQUÍ
+            opponentPlayers: [],   // Rival siempre vacío al crear
+        });
+
+        // Limpiar estados auxiliares
+        setPendingEvent({});
+        setPlayerForm({});
+        setEventForm({});
+        setAiReport(null);
+        setLoadingReport(false);
+        setPendingSubOut(null);
+        setSanctionEndedPlayerId(null);
+        setSelectedPlayerId(null);
+        setMode(InputMode.IDLE);
+        setRosterTab('HOME');
+        processedSanctionIds.current = new Set();
+
         setView('SETUP');
     };
 
@@ -1961,6 +2264,55 @@ export default function App() {
         setCurrentTeam(team);
         setSetupHomeLogo(team.logo);
         setSetupForm(prev => ({ ...prev, homeTeam: team.name }));
+
+        // Resetear el estado del partido con los jugadores del equipo seleccionado
+        // SIEMPRE asignamos al equipo actual a state.players, independientemente de si es local o visitante
+        const freshPlayers = team.players.map(p => ({
+            ...p,
+            active: false,
+            playingTime: 0,
+            playingTimeByPeriod: {}
+        }));
+
+        setState({
+            metadata: {
+                id: generateId(),
+                ownerTeamId: team.id,
+                date: new Date().toISOString(),
+                homeTeam: team.name,
+                homeTeamLogo: team.logo,
+                awayTeam: 'Rival',
+                awayTeamLogo: undefined,
+                location: '',
+                round: '',
+                isOurTeamHome: true,
+            },
+            config: DEFAULT_CONFIG,
+            timerSettings: { durationMinutes: DEFAULT_CONFIG.regularDuration, direction: DEFAULT_CONFIG.timerDirection },
+            currentPeriod: 1,
+            isPaused: true,
+            gameTime: DEFAULT_CONFIG.timerDirection === 'DOWN' ? DEFAULT_CONFIG.regularDuration * 60 : 0,
+            homeScore: 0,
+            awayScore: 0,
+            events: [],
+            resolvedSanctionIds: [],
+            players: freshPlayers, // SIEMPRE AQUÍ
+            opponentPlayers: [],   // Rival siempre empieza vacío
+        });
+
+        // Limpiar estados auxiliares
+        setPendingEvent({});
+        setPlayerForm({});
+        setEventForm({});
+        setAiReport(null);
+        setLoadingReport(false);
+        setPendingSubOut(null);
+        setSanctionEndedPlayerId(null);
+        setSelectedPlayerId(null);
+        setMode(InputMode.IDLE);
+        setRosterTab('HOME');
+        processedSanctionIds.current = new Set();
+
         setView('SETUP');
     };
 
@@ -1977,6 +2329,88 @@ export default function App() {
     };
 
     // Setup & Edit Match Handlers
+    const handleNewMatch = () => {
+        if (!currentTeam) return;
+
+        // Guardar el partido actual antes de crear uno nuevo
+        saveMatch(state);
+
+        // Resetear todo el estado excepto la plantilla de jugadores
+        // SIEMPRE asignamos al equipo actual a state.players
+        const freshPlayers = currentTeam.players.map(p => ({
+            ...p,
+            active: false,
+            playingTime: 0,
+            playingTimeByPeriod: {}
+        }));
+
+        // NOTA: No importa si jugamos en casa o fuera, "Nuestros Jugadores" siempre van a state.players
+
+        // Crear estado completamente nuevo
+        setState({
+            metadata: {
+                id: generateId(),
+                ownerTeamId: currentTeam.id,
+                date: new Date().toISOString(),
+                homeTeam: currentTeam.name,
+                homeTeamLogo: currentTeam.logo,
+                awayTeam: 'Rival',
+                awayTeamLogo: undefined,
+                location: '',
+                round: '',
+                isOurTeamHome: true, // Por defecto true, se cambia en Setup
+            },
+            config: DEFAULT_CONFIG,
+            timerSettings: { durationMinutes: DEFAULT_CONFIG.regularDuration, direction: DEFAULT_CONFIG.timerDirection },
+            currentPeriod: 1,
+            isPaused: true,
+            gameTime: DEFAULT_CONFIG.timerDirection === 'DOWN' ? DEFAULT_CONFIG.regularDuration * 60 : 0,
+            homeScore: 0,
+            awayScore: 0,
+            events: [],
+            resolvedSanctionIds: [],
+            players: freshPlayers, // SIEMPRE AQUÍ
+            opponentPlayers: [],   // Rival vacío
+        });
+
+        // Resetear todos los estados auxiliares
+        setPendingEvent({});
+        setPlayerForm({});
+        setEventForm({});
+        setAiReport(null);
+        setLoadingReport(false);
+        setPendingSubOut(null);
+        setSanctionEndedPlayerId(null);
+        setSelectedPlayerId(null);
+        setMode(InputMode.IDLE);
+        setRosterTab('HOME');
+        processedSanctionIds.current = new Set();
+
+        // Resetear formulario de setup con valores predeterminados
+        setSetupForm({
+            homeTeam: currentTeam.name,
+            awayTeam: 'Rival',
+            location: '',
+            round: '',
+            matchDate: new Date().toLocaleDateString('sv'),
+            regularPeriods: 2,
+            regularDuration: 30,
+            otDuration: 5,
+            direction: 'UP',
+            isOurTeamHome: true,
+            ownerTeamId: currentTeam.id
+        });
+        setSetupHomeLogo(currentTeam.logo);
+        setSetupAwayLogo(undefined);
+        setIsEditingMatch(false);
+
+        // Actualizar historial
+        if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
+
+        // Ir a la vista de configuración
+        setView('SETUP');
+    };
+
     const handleEditCurrentMatch = () => {
         const { metadata, config } = state;
         const wasHome = metadata.isOurTeamHome !== undefined
@@ -2131,10 +2565,18 @@ export default function App() {
             setAiReport(null);
             setLoadingReport(false);
             setPendingSubOut(null);
+            setSanctionEndedPlayerId(null);
+            setSelectedPlayerId(null);
+            setMode(InputMode.IDLE);
+            setRosterTab('HOME');
             processedSanctionIds.current = new Set();
 
-            const matchPlayers = currentTeam.players.map(p => ({ ...p, playingTime: 0, playingTimeByPeriod: {} }));
+            // Aquí NO modificamos players ni opponentPlayers basándonos en local/visitante.
+            // Los jugadores YA están cargados en state.players desde handleNewMatch o handleSelectTeam.
+            // Solo necesitamos resetear tiempos si fuera necesario, pero handleNewMatch ya lo hizo.
 
+            // Re-aplicamos el reset por seguridad, pero SIEMPRE sobre state.players
+            const matchPlayers = currentTeam.players.map(p => ({ ...p, active: false, playingTime: 0, playingTimeByPeriod: {} }));
 
             setState({
                 metadata: {
@@ -2158,8 +2600,8 @@ export default function App() {
                 awayScore: 0,
                 events: [],
                 resolvedSanctionIds: [],
-                players: matchPlayers,
-                opponentPlayers: [],
+                players: matchPlayers, // SIEMPRE AQUÍ
+                opponentPlayers: [],   // Rival empieza vacío
             });
             setView('MATCH');
         }
@@ -3167,6 +3609,62 @@ export default function App() {
         reader.readAsArrayBuffer(file);
     };
 
+    // --- Roster Management Extras ---
+    const handleSaveRosterToTeam = async () => {
+        if (rosterTab !== 'HOME') {
+            alert("Solo puedes guardar la plantilla de 'Mi Equipo'.");
+            return;
+        }
+        const teamId = state.metadata.teamId || state.metadata.ownerTeamId;
+        if (!teamId) {
+            alert("Este partido no tiene un equipo vinculado. No se puede guardar la plantilla.");
+            return;
+        }
+        const currentTeam = teams.find(t => t.id === teamId);
+        if (!currentTeam) {
+            alert("No se encontró el equipo original en la base de datos.");
+            return;
+        }
+
+        if (confirm(`¿Estás seguro de que deseas sobrescribir la plantilla del equipo "${currentTeam.name}" con los jugadores actuales? Esto actualizará la plantilla Maestra para futuros partidos.`)) {
+            try {
+                const updatedTeam: Team = { ...currentTeam, players: state.players };
+                await saveTeam(updatedTeam);
+                setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
+                alert("Plantilla Maestra actualizada correctamente.");
+            } catch (error) {
+                console.error("Error saving roster:", error);
+                alert("Error al guardar.");
+            }
+        }
+    };
+
+    const handleRecoverRosterFromTeam = () => {
+        if (rosterTab !== 'HOME') {
+            alert("Solo puedes recuperar la plantilla de 'Mi Equipo'.");
+            return;
+        }
+        setMode(InputMode.SELECT_TEAM_FOR_RECOVER);
+    };
+
+    const handleConfirmRecoverTeam = (team: Team) => {
+        if (confirm(`¿Cargar la plantilla de "${team.name}"? Se perderán los jugadores actuales y se actualizará el equipo local del partido.`)) {
+            setState(prev => ({
+                ...prev,
+                players: team.players || [],
+                metadata: {
+                    ...prev.metadata,
+                    teamId: team.id,
+                    ownerTeamId: team.id,
+                    homeTeam: team.name,
+                    homeTeamLogo: team.logo
+                }
+            }));
+            alert(`Plantilla de "${team.name}" cargada.`);
+            setMode(InputMode.IDLE);
+        }
+    };
+
     // --- Match Logic ---
     const lastTickRef = useRef<number>(0);
     useEffect(() => {
@@ -3406,9 +3904,19 @@ export default function App() {
     };
 
     const handleTimeout = (isOpponent: boolean) => {
+        // Rule: No timeouts in Overtime
+        if (state.currentPeriod > state.config.regularPeriods) {
+            alert("No se permiten tiempos muertos en la prórroga (Regla 2:10).");
+            return;
+        }
+
         const teamEvents = state.events.filter(e => e.type === 'TIMEOUT' && (isOpponent ? e.isOpponent : !e.isOpponent));
         const periodTimeouts = teamEvents.filter(e => e.period === state.currentPeriod).length;
-        if (teamEvents.length >= 3 || periodTimeouts >= 2) { alert(`Límite tiempos muertos.`); return; }
+
+        // Basic Rule: 3 timeouts per match, max 2 per half. (Advanced rules like 'max 1 in last 5 mins' excluded for simplicity unless requested)
+        if (teamEvents.length >= 3) { alert(`Límite total de tiempos muertos (3) alcanzado.`); return; }
+        if (periodTimeouts >= 2) { alert(`Límite de tiempos muertos por periodo (2) alcanzado.`); return; }
+
         setState(s => ({ ...s, isPaused: true, events: [{ id: generateId(), type: 'TIMEOUT', timestamp: s.gameTime, period: s.currentPeriod, isOpponent: isOpponent, homeScoreSnapshot: s.homeScore, awayScoreSnapshot: s.awayScore }, ...s.events] }));
     };
     const undoLastEvent = () => {
@@ -3427,6 +3935,53 @@ export default function App() {
             }
             return recalculateMatchState(newState);
         });
+    };
+
+    const handleResetMatch = () => {
+        if (!window.confirm('⚠️ ¿Estás seguro de que quieres resetear el partido?\n\nEsto eliminará todos los eventos, marcadores y tiempos, pero conservará la configuración del partido y los jugadores.')) {
+            return;
+        }
+
+        setState(s => {
+            // Resetear todos los jugadores a inactivos y limpiar tiempos de juego
+            const resetPlayers = s.players.map(p => ({
+                ...p,
+                active: false,
+                playingTime: 0,
+                playingTimeByPeriod: {}
+            }));
+
+            const resetOpponentPlayers = (s.opponentPlayers || []).map(p => ({
+                ...p,
+                active: false,
+                playingTime: 0,
+                playingTimeByPeriod: {}
+            }));
+
+            return {
+                ...s,
+                currentPeriod: 1,
+                isPaused: true,
+                gameTime: s.config.timerDirection === 'DOWN' ? s.config.regularDuration * 60 : 0,
+                homeScore: 0,
+                awayScore: 0,
+                events: [],
+                resolvedSanctionIds: [],
+                players: resetPlayers,
+                opponentPlayers: resetOpponentPlayers,
+                timerSettings: {
+                    durationMinutes: s.config.regularDuration,
+                    direction: s.config.timerDirection
+                }
+            };
+        });
+
+        // Limpiar estados auxiliares
+        processedSanctionIds.current = new Set();
+        setSanctionEndedPlayerId(null);
+        setPendingEvent({});
+        setPendingSubOut(null);
+        setMode(InputMode.IDLE);
     };
 
     // Flows
@@ -3649,6 +4204,21 @@ export default function App() {
             if (playerIndex >= 0) { newPlayers[playerIndex] = { ...newPlayers[playerIndex], ...playerToSave }; } else { newPlayers.push(playerToSave); }
             newPlayers.sort((a, b) => a.number - b.number);
 
+            // SINCRONIZACIÓN CON EL EQUIPO (PERSISTENCIA)
+            if (isHome && currentTeam) {
+                // Crear una copia actualizada del equipo
+                const updatedTeam = { ...currentTeam, players: newPlayers };
+
+                // 1. Guardar en LocalStorage / Cloud
+                saveTeam(updatedTeam);
+
+                // 2. Actualizar estado local de equipos
+                setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
+
+                // 3. Actualizar equipo actual en memoria
+                setCurrentTeam(updatedTeam);
+            }
+
             if (isHome) {
                 return { ...s, players: newPlayers };
             } else {
@@ -3663,7 +4233,17 @@ export default function App() {
             setState(s => {
                 const isHome = rosterTab === 'HOME';
                 if (isHome) {
-                    return { ...s, players: s.players.filter(p => p.id !== playerForm.id) };
+                    const newPlayers = s.players.filter(p => p.id !== playerForm.id);
+
+                    // SINCRONIZACIÓN CON EL EQUIPO (PERSISTENCIA)
+                    if (currentTeam) {
+                        const updatedTeam = { ...currentTeam, players: newPlayers };
+                        saveTeam(updatedTeam);
+                        setTeams(prev => prev.map(t => t.id === updatedTeam.id ? updatedTeam : t));
+                        setCurrentTeam(updatedTeam);
+                    }
+
+                    return { ...s, players: newPlayers };
                 } else {
                     return { ...s, opponentPlayers: s.opponentPlayers.filter(p => p.id !== playerForm.id) };
                 }
@@ -4057,7 +4637,10 @@ export default function App() {
                     <div className="flex-1 p-2 space-y-2 flex flex-col min-h-0">
                         <div className="grid grid-cols-6 gap-1 h-10 sm:h-auto">
                             <button onClick={startOpponentShotFlow} className="col-span-2 bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 p-0 sm:p-4 rounded-lg font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all active:scale-95 text-[9px] sm:text-lg leading-tight uppercase">
-                                <ShieldAlert size={14} className="sm:w-7 sm:h-7" /> <span className="text-center">Ataque<br className="sm:hidden" /> Rival</span>
+                                <ShieldAlert size={14} className="sm:w-7 sm:h-7" />
+                                <span className="text-center truncate w-full px-1">
+                                    {(state.metadata.isOurTeamHome !== false) ? state.metadata.awayTeam : state.metadata.homeTeam}
+                                </span>
                             </button>
                             <button onClick={() => setMode(InputMode.SELECT_TEAM_FOR_NEW_EVENT)} className="bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg flex items-center justify-center transition-all active:scale-95" title="Añadir Evento Manualmente"><Plus size={16} className="sm:w-8 sm:h-8" /></button>
                             <button onClick={handleEditCurrentMatch} className="bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg flex items-center justify-center transition-all active:scale-95" title="Configuración del Partido"><Settings size={16} className="sm:w-8 sm:h-8" /></button>
@@ -4122,6 +4705,26 @@ export default function App() {
         );
     }
 
+    const handleSwitchLocality = (newIsHome: boolean) => {
+        // Swap Names
+        const oldHome = setupForm.homeTeam;
+        const oldAway = setupForm.awayTeam;
+
+        // Swap Logos
+        const oldHomeLogo = setupHomeLogo;
+        const oldAwayLogo = setupAwayLogo;
+
+        setSetupForm(prev => ({
+            ...prev,
+            homeTeam: oldAway,
+            awayTeam: oldHome,
+            isOurTeamHome: newIsHome
+        }));
+
+        setSetupHomeLogo(oldAwayLogo);
+        setSetupAwayLogo(oldHomeLogo);
+    };
+
     if (view === 'SETUP') return (
         <SetupView
             form={setupForm}
@@ -4138,6 +4741,7 @@ export default function App() {
             isEditing={isEditingMatch}
             onCancel={() => { setIsEditingMatch(false); setView('MATCH'); }}
             teams={teams}
+            onSwitchLocality={handleSwitchLocality}
         />
     );
 
@@ -4167,7 +4771,7 @@ export default function App() {
                     handleEditArchivedMatch(id);
                 }}
                 currentMatchMetadata={state.metadata}
-                onNewMatch={handleEditCurrentMatch}
+                onNewMatch={handleNewMatch}
                 onSave={handleManualSave}
                 isSaving={isSaving}
                 onImport={handleImportMatch}
@@ -4212,7 +4816,7 @@ export default function App() {
                     )}
                     {view === 'TIMELINE' && (
                         <ErrorBoundary viewName="Timeline">
-                            <TimelineView state={state} onDeleteEvent={handleDeleteEvent} onEditEvent={openEditEventModal} onAddEvent={handleStartAddEvent} />
+                            <TimelineView state={state} onDeleteEvent={handleDeleteEvent} onEditEvent={openEditEventModal} onAddEvent={handleStartAddEvent} onResetMatch={handleResetMatch} />
                         </ErrorBoundary>
                     )}
                     {view === 'ROSTER' && (
@@ -4244,7 +4848,13 @@ export default function App() {
 
 
 
-                            <div className="flex gap-2 justify-end mb-4">
+                            <div className="flex gap-2 justify-end mb-4 flex-wrap">
+                                <button onClick={handleSaveRosterToTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-blue-300">
+                                    <Save size={16} /> Grabar
+                                </button>
+                                <button onClick={handleRecoverRosterFromTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-orange-300">
+                                    <RefreshCw size={16} /> Recuperar
+                                </button>
                                 <button onClick={() => setMode(InputMode.IMPORT_ROSTER)} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-green-400">
                                     <FileSpreadsheet size={16} /> Importar Excel
                                 </button>
@@ -4358,6 +4968,18 @@ export default function App() {
                     {mode === InputMode.EDIT_EVENT_DETAILS && renderModal('Editar Evento', renderEventEditor())}
                     {mode === InputMode.IMPORT_ROSTER && renderModal('Importar Plantilla', renderImportRosterModal())}
                     {mode === InputMode.SELECT_TEAM_FOR_NEW_EVENT && renderModal('¿De quién es el evento?', <div className="grid grid-cols-2 gap-4"><button onClick={() => handleTeamSelectForNewEvent(false)} className="p-4 bg-slate-700 hover:bg-handball-blue text-white rounded-xl font-bold uppercase">{state.metadata.homeTeam}</button><button onClick={() => handleTeamSelectForNewEvent(true)} className="p-4 bg-red-900/50 hover:bg-red-800 text-white rounded-xl font-bold uppercase">{state.metadata.awayTeam}</button></div>)}
+
+                    {mode === InputMode.SELECT_TEAM_FOR_RECOVER && renderModal('Seleccionar Equipo a Recuperar', (
+                        <div className="grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+                            {teams.map(t => (
+                                <button key={t.id} onClick={() => handleConfirmRecoverTeam(t)} className="p-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl flex flex-col items-center gap-2 transition-all active:scale-95">
+                                    {t.logo ? <img src={t.logo} className="w-12 h-12 object-contain" /> : <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center"><Users className="text-slate-400" /></div>}
+                                    <span className="font-bold text-center text-sm text-white">{t.name}</span>
+                                    <span className="text-xs text-slate-500">{t.category}</span>
+                                </button>
+                            ))}
+                        </div>
+                    ))}
 
 
 

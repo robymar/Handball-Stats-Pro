@@ -1,6 +1,6 @@
 {
   "name": "handball-stats-pro",
-  "version": "1.1.64",
+  "version": "1.1.69",
   "description": "Aplicación profesional de estadísticas de balonmano",
   "type": "module",
   "scripts": {
@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@capacitor/android": "^7.4.4",
+    "@capacitor/app": "^8.0.0",
     "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^7.4.4",
     "@capacitor/core": "^7.4.4",
@@ -22,6 +23,8 @@
     "@supabase/supabase-js": "^2.87.1",
     "exceljs": "^4.4.0",
     "lucide-react": "^0.553.0",
+    "markdown-pdf": "^11.0.0",
+    "pdf-parse": "^1.1.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

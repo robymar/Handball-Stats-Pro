@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { supabase } from '../services/supabase';
-import { Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Download, LogOut, Cloud, Upload } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Download, LogOut, Cloud, Upload, RefreshCw } from 'lucide-react';
 import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch } from '../services/storageService';
 import { Team, MatchState } from '../types';
 
@@ -12,6 +12,7 @@ interface LoginViewProps {
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, onSync }) => {
+    // --- AUTH STATE ---
     const [isRegistering, setIsRegistering] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -19,6 +20,36 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+
+    // --- NEW: Email confirmation state ---
+    const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
+    const [confirmationEmail, setConfirmationEmail] = useState<string>('');
+
+    // --- NEW: Resend confirmation email ---
+    const resendConfirmationEmail = async () => {
+        if (!supabase || !confirmationEmail) return;
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            const { error } = await supabase.auth.resend({
+                type: 'signup',
+                email: confirmationEmail,
+                options: {
+                    emailRedirectTo: 'handballstats://auth'
+                }
+            });
+
+            if (error) throw error;
+
+            setMessage('📧 Email reenviado correctamente. Revisa tu bandeja de entrada (y spam).');
+        } catch (err: any) {
+            setError(err.message || 'Error al reenviar email');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleAuth = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -34,24 +65,84 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
 
         try {
             if (isRegistering) {
-                const { error } = await supabase.auth.signUp({
+                // REGISTRO
+                const { data, error } = await supabase.auth.signUp({
                     email,
                     password,
                     options: {
                         data: {
                             full_name: fullName,
                         },
+                        emailRedirectTo: 'handballstats://auth'
                     },
                 });
+
                 if (error) throw error;
-                setMessage("Registro exitoso. ¡Revisa tu email para confirmar!");
+
+                // Verificar si se requiere confirmación de email
+                // Si identities está vacío, significa que el email NO está confirmado y se envió un email
+                if (data?.user && !data.user.email_confirmed_at && data.user.identities?.length === 0) {
+                    setAwaitingConfirmation(true);
+                    setConfirmationEmail(email);
+                    setMessage(
+                        "¡Registro exitoso! 📧\n\n" +
+                        "Te hemos enviado un email de confirmación a:\n" +
+                        email + "\n\n" +
+                        "Por favor revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.\n\n" +
+                        "💡 El email puede tardar unos minutos en llegar. No olvides revisar la carpeta de spam."
+                    );
+                } else if (data?.user && !data.user.email_confirmed_at) {
+                    setAwaitingConfirmation(true);
+                    setConfirmationEmail(email);
+                    setMessage(
+                        "¡Casi listo! 📧\n\n" +
+                        "Revisa tu email para confirmar tu cuenta antes de iniciar sesión."
+                    );
+                } else if (data?.user && data.user.email_confirmed_at) {
+                    // Usuario confirmado automáticamente (configuración sin confirmación obligatoria)
+                    setMessage("¡Registro exitoso! Ya puedes iniciar sesión.");
+                    setAwaitingConfirmation(false);
+                    // Cambiar a modo login después de 2 segundos
+                    setTimeout(() => {
+                        setIsRegistering(false);
+                        setMessage("Ahora inicia sesión con tu email y contraseña.");
+                    }, 2000);
+                }
             } else {
-                const { error } = await supabase.auth.signInWithPassword({
+                // LOGIN
+                const { data, error } = await supabase.auth.signInWithPassword({
                     email,
                     password,
                 });
-                if (error) throw error;
-                onLoginSuccess();
+
+                if (error) {
+                    // Mejorar mensajes de error específicos
+                    if (error.message.includes('Email not confirmed')) {
+                        setAwaitingConfirmation(true);
+                        setConfirmationEmail(email);
+                        throw new Error('⚠️ Tu email aún no ha sido confirmado.\n\nPor favor revisa tu bandeja de entrada y haz clic en el enlace de confirmación.\n\n💡 Si no encuentras el email, revisa la carpeta de spam.');
+                    }
+                    if (error.message.includes('Invalid login credentials')) {
+                        throw new Error('Email o contraseña incorrectos. Por favor verifica tus datos.');
+                    }
+                    throw error;
+                }
+
+                // Verificar si el email está confirmado (doble verificación)
+                if (data.user && !data.user.email_confirmed_at) {
+                    setAwaitingConfirmation(true);
+                    setConfirmationEmail(email);
+                    setError('⚠️ Tu email aún no ha sido confirmado.\n\nRevisa tu bandeja de entrada y haz clic en el enlace de confirmación antes de iniciar sesión.');
+                    // Cerrar sesión inmediatamente
+                    await supabase.auth.signOut();
+                    return;
+                }
+
+                // Login exitoso
+                setMessage('✅ ¡Sesión iniciada correctamente!');
+                setTimeout(() => {
+                    onLoginSuccess();
+                }, 500);
             }
         } catch (err: any) {
             setError(err.message || "Ocurrió un error");
@@ -60,16 +151,131 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
         }
     };
 
+
     const [user, setUser] = useState<any>(null);
+
+    // --- PASSWORD RESET STATE ---
+    const [isResettingPassword, setIsResettingPassword] = useState(false);
+    const [newPassword, setNewPassword] = useState('');
 
     React.useEffect(() => {
         if (supabase) {
             supabase.auth.getUser().then(({ data }) => {
                 if (data.user) setUser(data.user);
             });
+
+            const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log('🔐 Auth Event:', event, session?.user?.email);
+
+                switch (event) {
+                    case "PASSWORD_RECOVERY":
+                        setIsResettingPassword(true);
+                        setError(null);
+                        setMessage("Ingresa tu nueva contraseña a continuación.");
+                        break;
+
+                    case "SIGNED_IN":
+                        // Verificar si el email está confirmado
+                        if (session?.user && !session.user.email_confirmed_at) {
+                            setError('⚠️ Tu email aún no ha sido confirmado.\n\nPor favor confirma tu email antes de continuar.');
+                            if (supabase) await supabase.auth.signOut();
+                            return;
+                        }
+                        setUser(session?.user);
+                        setIsResettingPassword(false);
+                        setMessage('✅ ¡Sesión iniciada correctamente!');
+                        // Limpiar mensaje después de 3 segundos
+                        setTimeout(() => setMessage(null), 3000);
+                        break;
+
+                    case "SIGNED_OUT":
+                        setUser(null);
+                        setIsResettingPassword(false);
+                        setMessage(null);
+                        break;
+
+                    case "USER_UPDATED":
+                        if (session?.user) {
+                            setUser(session.user);
+                            setMessage('✅ Perfil actualizado correctamente.');
+                            setTimeout(() => setMessage(null), 3000);
+                        }
+                        break;
+
+                    case "TOKEN_REFRESHED":
+                        console.log('🔄 Token refrescado automáticamente');
+                        // No mostrar nada al usuario, es automático
+                        break;
+
+                    case "INITIAL_SESSION":
+                        if (session?.user) {
+                            setUser(session.user);
+                            console.log('📱 Sesión inicial cargada');
+                        }
+                        break;
+
+                    default:
+                        console.log('⚠️ Evento de auth no manejado:', event);
+                }
+            });
+
+            return () => {
+                authListener.subscription.unsubscribe();
+            };
         }
     }, []);
 
+    // --- NEW: Polling para detectar confirmación de email ---
+    React.useEffect(() => {
+        if (!supabase || !awaitingConfirmation) return;
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const { data } = await supabase.auth.refreshSession();
+                if (data.user?.email_confirmed_at) {
+                    setAwaitingConfirmation(false);
+                    setMessage('✅ ¡Email confirmado! Ya puedes iniciar sesión.');
+                    // Cambiar a modo login automáticamente
+                    setTimeout(() => {
+                        setIsRegistering(false);
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Error checking confirmation:', err);
+            }
+        }, 5000); // Cada 5 segundos
+
+        return () => clearInterval(pollInterval);
+    }, [awaitingConfirmation]);
+
+
+
+    const handleUpdatePassword = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        setError(null);
+        if (!supabase) {
+            setError('Error: Supabase no está configurado.');
+            setLoading(false);
+            return;
+        }
+        try {
+            const { error } = await supabase.auth.updateUser({ password: newPassword });
+            if (error) throw error;
+            setMessage("¡Contraseña actualizada correctamente!");
+            setTimeout(() => {
+                setIsResettingPassword(false);
+                setNewPassword('');
+                onLoginSuccess();
+            }, 1500);
+        } catch (err: any) {
+            setError(err.message || "Error al actualizar la contraseña");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ... (handleSyncDown, handleSyncUp, handleLogout remain the same) ...
     const handleSyncDown = async () => {
         if (!supabase || !user) return;
         setLoading(true);
@@ -90,7 +296,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                         category: t.category,
                         gender: t.gender,
                         logo: t.logo_url,
-                        players: [], // We need to handle players. For now empty or fetching if we had a table.
+                        players: t.players || [], // Creating team with synced players
                         createdAt: new Date(t.created_at).getTime()
                     };
                     // Use skipSync=true to avoid re-uploading immediately
@@ -168,7 +374,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
         }
     };
 
-    if (user) {
+    if (user && !isResettingPassword) {
         return (
             <div className="h-full flex items-center justify-center p-4 bg-slate-900">
                 <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center">
@@ -238,12 +444,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-black text-white mb-2">
-                        {isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión'}
+                        {isResettingPassword ? 'Cambiar Contraseña' : (isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión')}
                     </h2>
                     <p className="text-slate-400">
-                        {isRegistering
-                            ? 'Guarda tus estadísticas en la nube ☁️'
-                            : 'Accede a tus datos sincronizados'}
+                        {isResettingPassword
+                            ? 'Introduce tu nueva contraseña'
+                            : (isRegistering
+                                ? 'Guarda tus estadísticas en la nube ☁️'
+                                : 'Accede a tus datos sincronizados')}
                     </p>
                 </div>
 
@@ -261,64 +469,123 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                     </div>
                 )}
 
-                <form onSubmit={handleAuth} className="space-y-4">
-                    {isRegistering && (
+                {isResettingPassword ? (
+                    <form onSubmit={handleUpdatePassword} className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Completo</label>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nueva Contraseña</label>
                             <div className="relative">
-                                <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                                 <input
-                                    type="text"
+                                    type="password"
                                     required
                                     className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
-                                    placeholder="Tu Nombre"
-                                    value={fullName}
-                                    onChange={e => setFullName(e.target.value)}
+                                    placeholder="••••••••"
+                                    minLength={6}
+                                    value={newPassword}
+                                    onChange={e => setNewPassword(e.target.value)}
                                 />
                             </div>
                         </div>
-                    )}
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                            <input
-                                type="email"
-                                required
-                                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
-                                placeholder="ejemplo@email.com"
-                                value={email}
-                                onChange={e => setEmail(e.target.value)}
-                            />
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 bg-handball-blue hover:bg-blue-600 disabled:opacity-50 text-white font-bold uppercase rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-6"
+                        >
+                            {loading ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
+                        </button>
+                    </form>
+                ) : (
+                    <form onSubmit={handleAuth} className="space-y-4">
+                        {isRegistering && (
+                            <div>
+                                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nombre Completo</label>
+                                <div className="relative">
+                                    <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                    <input
+                                        type="text"
+                                        required
+                                        className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
+                                        placeholder="Tu Nombre"
+                                        value={fullName}
+                                        onChange={e => setFullName(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                <input
+                                    type="email"
+                                    required
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
+                                    placeholder="ejemplo@email.com"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Contraseña</label>
-                        <div className="relative">
-                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-                            <input
-                                type="password"
-                                required
-                                className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
-                                placeholder="••••••••"
-                                minLength={6}
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                            />
+                        <div>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Contraseña</label>
+                            <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                <input
+                                    type="password"
+                                    required
+                                    className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
+                                    placeholder="••••••••"
+                                    minLength={6}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                onClick={async () => {
+                                    if (!email) {
+                                        setError('Escribe tu email arriba para recuperar la contraseña.');
+                                        return;
+                                    }
+                                    setLoading(true);
+                                    setError(null);
+                                    setMessage(null);
+                                    if (!supabase) {
+                                        setError('Error: Supabase no está configurado.');
+                                        setLoading(false);
+                                        return;
+                                    }
+                                    try {
+                                        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+                                            redirectTo: 'handballstats://auth'
+                                        });
+                                        if (error) throw error;
+                                        setMessage('¡Correo enviado! Revisa tu bandeja de entrada para restablecer tu contraseña (busca el enlace de Handball Stats).');
+                                    } catch (err: any) {
+                                        setError(err.message || 'Error al solicitar recuperación');
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="text-xs text-handball-blue hover:text-blue-400 mt-2 text-right w-full block transition-colors"
+                            >
+                                ¿Olvidaste tu contraseña?
+                            </button>
                         </div>
-                    </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full py-4 bg-handball-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold uppercase rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-6"
-                    >
-                        {loading ? 'Procesando...' : (isRegistering ? 'Registrarse' : 'Entrar')}
-                        {!loading && <LogIn size={20} />}
-                    </button>
-                </form>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full py-4 bg-handball-blue hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold uppercase rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-6"
+                        >
+                            {loading ? 'Procesando...' : (isRegistering ? 'Registrarse' : 'Entrar')}
+                            {!loading && <LogIn size={20} />}
+                        </button>
+                    </form>
+                )}
 
                 <div className="mt-6 pt-6 border-t border-slate-700 text-center">
                     <button
@@ -330,6 +597,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                             : '¿No tienes cuenta? Regístrate gratis'}
                     </button>
                 </div>
+
+                {/* NEW: Show resend and skip buttons when awaiting confirmation */}
+                {awaitingConfirmation && (
+                    <div className="mt-4 space-y-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl">
+                        <p className="text-xs text-blue-200 text-center mb-3">
+                            ⏳ Esperando confirmación de email...
+                        </p>
+                        <button
+                            onClick={resendConfirmationEmail}
+                            disabled={loading}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                            <RefreshCw size={16} />
+                            {loading ? 'Enviando...' : 'Reenviar Email de Confirmación'}
+                        </button>
+                        <button
+                            onClick={() => {
+                                setAwaitingConfirmation(false);
+                                setMessage(null);
+                                onBack();
+                            }}
+                            className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2"
+                        >
+                            <Cloud size={16} />
+                            Usar App Offline (Confirmar Más Tarde)
+                        </button>
+                    </div>
+                )}
 
                 <div className="mt-4 text-center">
                     <button onClick={onBack} className="text-slate-500 hover:text-slate-400 text-xs">

@@ -39,6 +39,7 @@ create table public.teams (
   category text,
   gender text check (gender in ('MALE', 'FEMALE', 'MIXED')),
   logo_url text,
+  players jsonb default '[]'::jsonb,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
