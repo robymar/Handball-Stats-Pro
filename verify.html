@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verificando Email - Handball Stats Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        h1 {
+            color: #3b82f6;
+            margin-bottom: 10px;
+            font-size: 28px;
+            font-weight: 800;
+        }
+        
+        .subtitle {
+            color: #94a3b8;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+            margin: 30px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #status {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 20px 0;
+            color: #e2e8f0;
+        }
+        
+        .instructions {
+            background: rgba(59, 130, 246, 0.1);
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            display: none;
+        }
+        
+        .instructions h3 {
+            color: #fbbf24;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+        
+        .instructions p {
+            color: #cbd5e1;
+            margin-bottom: 16px;
+            line-height: 1.6;
+        }
+        
+        .instructions ol {
+            text-align: left;
+            color: #e2e8f0;
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        
+        .instructions li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+        
+        .instructions strong {
+            color: #3b82f6;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 20px;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .success {
+            color: #10b981;
+        }
+        
+        .warning {
+            color: #fbbf24;
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+        
+        .footer {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #64748b;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">🏐</div>
+        <h1>Handball Stats Pro</h1>
+        <p class="subtitle">Verificación de Email</p>
+        
+        <div class="spinner" id="spinner"></div>
+        <p id="status">Verificando tu email...</p>
+        
+        <div class="instructions" id="instructions">
+            <h3>⚠️ Necesitas abrir esto en Chrome</h3>
+            <p>Gmail no puede abrir la app directamente desde su navegador interno.</p>
+            <ol>
+                <li>Toca el botón de abajo para <strong>copiar el enlace</strong></li>
+                <li>Abre <strong>Chrome</strong> en tu dispositivo</li>
+                <li>Pega el enlace en la barra de direcciones</li>
+                <li>La app se abrirá automáticamente ✨</li>
+            </ol>
+            <button class="btn" onclick="copyLink()">📋 Copiar Enlace</button>
+            <p style="margin-top: 16px; font-size: 12px; color: #94a3b8;">
+                O mantén presionado el enlace del email y selecciona "Abrir en Chrome"
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>Handball Stats Pro © 2026</p>
+            <p>Si tienes problemas, contacta con soporte</p>
+        </div>
+    </div>
+
+    <script>
+        // Extraer parámetros de la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        
+        // Intentar obtener el código de ambas fuentes
+        const code = urlParams.get('code') || 
+                     urlParams.get('token_hash') || 
+                     hashParams.get('code') || 
+                     hashParams.get('token_hash');
+        
+        const type = urlParams.get('type') || hashParams.get('type') || 'signup';
+        const error = urlParams.get('error') || hashParams.get('error');
+        const errorDescription = urlParams.get('error_description') || 
+                                hashParams.get('error_description');
+        
+        console.log('URL completa:', window.location.href);
+        console.log('Código extraído:', code);
+        console.log('Tipo:', type);
+        console.log('Error:', error);
+        
+        // Construir deep link
+        const deepLink = code 
+            ? `handballstats://auth?code=${encodeURIComponent(code)}&type=${type}`
+            : 'handballstats://auth';
+        
+        console.log('Deep link generado:', deepLink);
+        
+        // Detectar si estamos en WebView (Gmail, Facebook, Instagram, etc.)
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const isWebView = /(wv|WebView|; wv)/.test(userAgent);
+        const isGmail = /Gmail/i.test(userAgent);
+        const isFacebook = /FBAN|FBAV/i.test(userAgent);
+        const isInstagram = /Instagram/i.test(userAgent);
+        const isInApp = isWebView || isGmail || isFacebook || isInstagram;
+        
+        console.log('User Agent:', userAgent);
+        console.log('Es WebView:', isWebView);
+        console.log('Es Gmail:', isGmail);
+        console.log('Es in-app browser:', isInApp);
+        
+        // Función para copiar el enlace
+        function copyLink() {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(deepLink).then(() => {
+                    alert('✅ Enlace copiado!\n\nAhora:\n1. Abre Chrome\n2. Pega el enlace\n3. La app se abrirá automáticamente');
+                }).catch(err => {
+                    console.error('Error al copiar:', err);
+                    fallbackCopy();
+                });
+            } else {
+                fallbackCopy();
+            }
+        }
+        
+        // Fallback para copiar en navegadores antiguos
+        function fallbackCopy() {
+            const textArea = document.createElement('textarea');
+            textArea.value = deepLink;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                alert('✅ Enlace copiado!\n\nAhora ábrelo en Chrome.');
+            } catch (err) {
+                alert('❌ No se pudo copiar automáticamente.\n\nEnlace:\n' + deepLink);
+            }
+            document.body.removeChild(textArea);
+        }
+        
+        // Función principal
+        function handleVerification() {
+            const statusEl = document.getElementById('status');
+            const spinnerEl = document.getElementById('spinner');
+            const instructionsEl = document.getElementById('instructions');
+            
+            // Si hay error en la URL
+            if (error) {
+                console.error('Error en URL:', error, errorDescription);
+                spinnerEl.style.display = 'none';
+                statusEl.className = 'error';
+                statusEl.textContent = '❌ Error: ' + (errorDescription || error);
+                return;
+            }
+            
+            // Si no hay código
+            if (!code) {
+                console.error('No se encontró código en la URL');
+                spinnerEl.style.display = 'none';
+                statusEl.className = 'error';
+                statusEl.textContent = '❌ Enlace inválido o expirado';
+                instructionsEl.innerHTML = '<p>Por favor solicita un nuevo email de verificación desde la app.</p>';
+                instructionsEl.style.display = 'block';
+                return;
+            }
+            
+            // Si estamos en WebView/Gmail
+            if (isInApp) {
+                console.log('Detectado navegador in-app, mostrando instrucciones');
+                spinnerEl.style.display = 'none';
+                statusEl.className = 'warning';
+                statusEl.textContent = '⚠️ Detectado Gmail/WebView';
+                instructionsEl.style.display = 'block';
+                return;
+            }
+            
+            // Navegador normal - intentar redirección automática
+            console.log('Navegador normal detectado, intentando redirección...');
+            statusEl.className = 'success';
+            statusEl.textContent = '✅ Abriendo la app...';
+            
+            // Intentar abrir la app
+            window.location.href = deepLink;
+            
+            // Fallback: Si no se abre en 3 segundos, mostrar instrucciones
+            setTimeout(() => {
+                spinnerEl.style.display = 'none';
+                statusEl.className = 'warning';
+                statusEl.textContent = '¿La app no se abrió?';
+                instructionsEl.style.display = 'block';
+            }, 3000);
+        }
+        
+        // Ejecutar cuando la página cargue
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handleVerification);
+        } else {
+            handleVerification();
+        }
+    </script>
+</body>
+</html>
