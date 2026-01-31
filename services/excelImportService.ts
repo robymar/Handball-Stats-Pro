@@ -208,7 +208,7 @@ export const parseExcelMatch = async (file: File): Promise<MatchState | null> =>
                         timestamp: eventTimestamp++,
                         period: 1,
                         type: 'POSITIVE_ACTION',
-                        positiveActionType: PositiveActionType.ASSIST_BLOCK,
+                        positiveActionType: PositiveActionType.ASSIST,
                         playerId: id,
                         isOpponent: false
                     });

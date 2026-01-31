@@ -236,7 +236,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
 
                     // --- POSITIVE ACTIONS ---
                     if (e.type === 'POSITIVE_ACTION') {
-                        if (e.positiveActionType === PositiveActionType.ASSIST_BLOCK) entry.assists++;
+                        if (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK) entry.assists++;
                         if (e.positiveActionType === PositiveActionType.STEAL) entry.steals++;
                         if (e.positiveActionType === PositiveActionType.BLOCK_SHOT) entry.blocks++;
                         if (e.positiveActionType === PositiveActionType.FORCE_PENALTY) entry.penalties++;

@@ -10,7 +10,8 @@ import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
 import { INITIAL_PLAYERS, RATING_WEIGHTS } from './constants.ts';
 import { MatchState, Player, MatchEvent, ShotZone, ShotOutcome, TurnoverType, SanctionType, ShotPlacement, Position, MatchConfig, MatchMetadata, PositiveActionType, Team } from './types.ts';
-import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud } from 'lucide-react';
+import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud, Minus, Timer as TimerIcon, Play, Pause, RotateCcw, Share2, Search, Calendar, MapPin, AlertTriangle, AlertCircle, FileText, Smartphone, Laptop, Printer, Hash, MoreVertical, Copy } from 'lucide-react';
+import packageJson from './package.json';
 import { generateMatchReport } from './services/geminiService.ts';
 import { supabase } from './services/supabase.ts';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -79,11 +80,15 @@ const DEFAULT_CONFIG: MatchConfig = {
     timerDirection: 'UP'
 };
 
-const NavButton = ({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
+// Optimized with React.memo to prevent unnecessary re-renders
+const NavButton = React.memo(({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
     <button onClick={onClick} className={`flex flex-col items-center p-2 rounded-lg transition-colors w-16 ${active ? 'text-handball-blue bg-slate-900' : 'text-slate-500 hover:text-slate-300'}`}>
         <div className="mb-1">{icon}</div><span className="text-[9px] font-bold uppercase">{label}</span>
     </button>
-);
+), (prevProps, nextProps) => {
+    // Only re-render if active or label changes (icon and onClick are stable)
+    return prevProps.active === nextProps.active && prevProps.label === nextProps.label;
+});
 
 // --- HELPER FUNCTIONS ---
 let idCounter = 0;
@@ -285,13 +290,13 @@ const mapPositionString = (posStr: string): Position => {
 
 // --- COMPONENTS ---
 
-// Add Input component helper for cleaner code
-const SetupInput = ({ label, ...props }: any) => (
+// Optimized Input component helper with React.memo
+const SetupInput = React.memo(({ label, ...props }: any) => (
     <div>
         <label className="text-xs font-bold text-slate-400 uppercase block mb-1">{label}</label>
         <input {...props} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none" />
     </div>
-);
+));
 interface TeamSelectViewProps {
     teams: Team[];
     onSelectTeam: (team: Team) => void;
@@ -309,7 +314,8 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
     const [importFile, setImportFile] = useState<File | null>(null);
     const [formErrors, setFormErrors] = useState<{ name?: boolean, category?: boolean, gender?: boolean }>({});
 
-    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Optimized with useCallback to prevent recreation on every render
+    const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             try {
@@ -319,13 +325,14 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                 console.error(err);
             }
         }
-    };
+    }, []);
 
     // Edit Logic
     const [teamToEdit, setTeamToEdit] = useState<Team | null>(null);
     const longPressTimer = React.useRef<any>(null);
 
-    const handleTouchStart = (team: Team) => {
+    // Optimized with useCallback and proper cleanup
+    const handleTouchStart = useCallback((team: Team) => {
         longPressTimer.current = setTimeout(() => {
             setTeamToEdit(team);
             setNewName(team.name);
@@ -334,14 +341,23 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
             setNewLogo(team.logo);
             setIsCreating(true);
         }, 1000); // 1 second long press
-    };
+    }, []);
 
-    const handleTouchEnd = () => {
+    const handleTouchEnd = useCallback(() => {
         if (longPressTimer.current) {
             clearTimeout(longPressTimer.current);
             longPressTimer.current = null;
         }
-    };
+    }, []);
+
+    // Cleanup timer on unmount
+    useEffect(() => {
+        return () => {
+            if (longPressTimer.current) {
+                clearTimeout(longPressTimer.current);
+            }
+        };
+    }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -770,7 +786,7 @@ const StatsView: React.FC<StatsViewProps> = ({ state, aiReport, loadingReport, o
             const positiveEvents = playerEvents.filter(e => e.type === 'POSITIVE_ACTION');
             const positiveActions = positiveEvents.length;
             const steals = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.STEAL).length;
-            const assists = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+            const assists = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK).length;
             const penalties = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.FORCE_PENALTY).length;
             const goodDef = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.GOOD_DEFENSE).length;
             const blocks = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.BLOCK_SHOT).length;
@@ -857,7 +873,7 @@ const StatsView: React.FC<StatsViewProps> = ({ state, aiReport, loadingReport, o
             const fastbreak = getZoneGoalsOpp([ShotZone.FASTBREAK]);
 
             const turnovers = playerEvents.filter(e => e.type === 'TURNOVER').length;
-            const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+            const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK)).length;
 
             const yellow = playerEvents.filter(e => e.type === 'SANCTION' && e.sanctionType === SanctionType.YELLOW).length;
             const twoMin = playerEvents.filter(e => e.type === 'SANCTION' && e.sanctionType === SanctionType.TWO_MIN).length;
@@ -1732,6 +1748,9 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                     </button>
                 )
             }
+            <div className="mt-6 text-center text-[10px] text-slate-600 uppercase font-bold tracking-widest opacity-50">
+                v{packageJson.version}
+            </div>
 
         </div >
     </div >
@@ -1894,6 +1913,8 @@ export default function App() {
     const [teams, setTeams] = useState<Team[]>([]);
     const [currentTeam, setCurrentTeam] = useState<Team | null>(null);
     const [showSplash, setShowSplash] = useState(true);
+    // const staffSanctionSacrificedRef = useRef<string | null>(null); // REMOVED REF
+    const [pendingStaffSanctionSacrificeId, setPendingStaffSanctionSacrificeId] = useState<string | null>(null); // Use State for persistence
 
     const [state, setState] = useState<MatchState>({
         metadata: { id: generateId(), ownerTeamId: '', date: new Date().toISOString(), homeTeam: 'Nosotros', awayTeam: 'Rival', location: '', round: '' },
@@ -2139,18 +2160,30 @@ export default function App() {
             return remaining > 0;
         });
     }
+    // Separate memory for Staff sanctions to avoid conflicts with the main loop
+    const processedStaffSanctionIds = useRef(new Set<string>());
 
     // --- EFFECT: Monitor Staff Sanction Expiry ---
     useEffect(() => {
         const staffSanctionsWithDuration = state.events.filter(e =>
             e.type === 'SANCTION' && e.sanctionDuration && e.sanctionDuration > 0 &&
-            state.players.find(p => p.id === e.playerId)?.position === Position.STAFF
+            (state.players.find(p => p.id === e.playerId)?.position === Position.STAFF || state.players.find(p => p.id === e.playerId)?.position === Position.COACH)
         );
         for (const sanction of staffSanctionsWithDuration) {
             const { remaining } = getSanctionRemainingTime(sanction, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config);
-            if (remaining <= 0 && !processedSanctionIds.current.has(sanction.id)) {
-                processedSanctionIds.current.add(sanction.id);
+            // Use specialized Set for staff sanctions
+            if (remaining <= 0 && !processedStaffSanctionIds.current.has(sanction.id)) {
+                // Mark as processed in the specialized Set
+                processedStaffSanctionIds.current.add(sanction.id);
+
+                // Store sacrificed player for the handler to swap if needed (Using State now)
+                if (sanction.sacrificedPlayerId) {
+                    setPendingStaffSanctionSacrificeId(sanction.sacrificedPlayerId);
+                }
+
+                // Always ask who enters.
                 setMode(InputMode.SELECT_PLAYER_TO_ENTER_AFTER_STAFF_SANCTION);
+
                 break;
             }
         }
@@ -2158,6 +2191,7 @@ export default function App() {
 
     useEffect(() => {
         processedSanctionIds.current = new Set();
+        processedStaffSanctionIds.current = new Set(); // Reset staff set too on new match/load
     }, [state.metadata.id]);
 
     const handleManualSave = async () => {
@@ -2943,7 +2977,7 @@ export default function App() {
                 const fastbreak = getZoneGoals([ShotZone.FASTBREAK]);
 
                 const turnovers = playerEvents.filter(e => e.type === 'TURNOVER').length;
-                const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+                const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK)).length;
                 const pt = player.playingTime || 0;
                 const ptMin = Math.floor(pt / 60);
                 const ptSec = Math.floor(pt % 60);
@@ -3103,7 +3137,7 @@ export default function App() {
                 if (positiveEvents.length === 0 && turnoverEvents.length === 0) return;
 
                 const steals = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.STEAL).length;
-                const assists = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+                const assists = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK).length;
                 const penalties = positiveEvents.filter(e => e.positiveActionType === PositiveActionType.FORCE_PENALTY).length;
 
                 const passBad = turnoverEvents.filter(e => e.turnoverType === TurnoverType.PASS).length;
@@ -3215,7 +3249,7 @@ export default function App() {
                 const fastbreak = getZoneGoalsOpp([ShotZone.FASTBREAK]);
 
                 const turnovers = rivalEvents.filter(e => e.type === 'TURNOVER').length;
-                const assists = rivalEvents.filter(e => e.type === 'POSITIVE_ACTION' && e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+                const assists = rivalEvents.filter(e => e.type === 'POSITIVE_ACTION' && (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK)).length;
 
                 const row = wsGeneralOpponent.getRow(rowIndexOpp);
                 row.values = [
@@ -3262,7 +3296,7 @@ export default function App() {
 
                 const turnovers = playerEvents.filter(e => e.type === 'TURNOVER').length;
                 // Positive actions for opponent might not be fully tracked, but if they are:
-                const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && e.positiveActionType === PositiveActionType.ASSIST_BLOCK).length;
+                const assists = playerEvents.filter(e => e.type === 'POSITIVE_ACTION' && (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK)).length;
                 // Playing time for opponent might not be tracked accurately, but we include it if valid
                 const pt = player.playingTime || 0;
                 const ptMin = Math.floor(pt / 60);
@@ -3693,17 +3727,6 @@ export default function App() {
                         if (isPeriodFinished) {
                             // Force sync for all active players to ensure they get the FULL duration
                             // This fixes the "29:59" issue if delta didn't align perfectly or started late.
-                            const expectedTimeInPeriod = s.config.regularDuration * 60; // Or current duration logic
-
-                            // Use the helper to calculate correct period duration based on currentPeriod
-                            // Actually, we can just use the elapsed time for this period (GameTime or Duration-GameTime)
-                            // If counting UP, elapsed = newTime. If DOWN, elapsed = Duration - newTime.
-                            // BUT easier: If they are active at the finish line, they get the remainder needed to reach "Full Time".
-                            // However, simpler approach:
-                            // Just adding 'delta' is usually fine, but if we clamp 'newTime', we might clip the delta for the global time 
-                            // but 'delta' passed to players is still the full second. 
-                            // If newTime was 1799.5 and we clamp to 1800, delta was 0.5. Player gets 0.5. Matches 1800.
-
                             // The "29:59" likely comes from manual interventions or missed ticks.
                             // STRATEGY: If isPeriodFinished, find ACTIVE players and ROUND UP their period time to the nearest second 
                             // OR simply Ensure they have played the full 'available' minutes if they were active the whole time? 
@@ -3758,11 +3781,14 @@ export default function App() {
     // Unified Effect to monitor Sanction Expiry
     useEffect(() => {
         // Filter sanctions that have a duration (excludes Yellow cards which are permanent)
-        // Now INCLUDES Staff sanctions (v1.1.2)
+        // CRITICAL FIX v1.3.3: Exclude Staff/Coach. They have their own dedicated useEffect handler.
         const fieldPlayerSanctions = state.events.filter(e =>
             e.type === 'SANCTION' &&
             e.sanctionDuration &&
-            e.sanctionDuration > 0
+            e.sanctionDuration > 0 &&
+            // Check if player is NOT staff/coach
+            state.players.find(p => p.id === e.playerId)?.position !== Position.STAFF &&
+            state.players.find(p => p.id === e.playerId)?.position !== Position.COACH
         );
 
 
@@ -3815,28 +3841,42 @@ export default function App() {
             const isBlue = triggerEvent.sanctionType === SanctionType.BLUE;
             const isDisqualified = isRed || isBlue || isPlayerDisqualified(triggerEvent.playerId, state.events);
 
+            // CRITICAL FIX: Ignore Staff/Coach sanctions here. They are handled by a separate useEffect hook.
+            // If we let this fall through, it triggers the generic 'Fin Sanción' modal which purely activates a player
+            // without handling the 'sacrificed' swap logic, causing 8 players on field.
+            const p = state.players.find(pl => pl.id === triggerEvent.playerId);
+            const isStaffOrCoach = p?.position === Position.STAFF || p?.position === Position.COACH;
+
+            if (isStaffOrCoach) {
+                // Just mark as processed so the useEffect can pick it up (or has already picked it up)
+                // But DO NOT trigger the generic modal state
+                processedSanctionIds.current.add(triggerEvent.id);
+            } else {
+                // Update state: pause game and deactivate player if disqualified
+                setState(prev => {
+                    let updatedPlayers = prev.players;
+
+                    // CRITICAL: If disqualified, Force Deactivation
+                    if (isDisqualified) {
+                        updatedPlayers = prev.players.map(p =>
+                            p.id === triggerEvent.playerId ? { ...p, active: false } : p
+                        );
+                    }
+
+                    return {
+                        ...prev,
+                        players: updatedPlayers
+                    };
+                });
+
+                // Trigger Modal (via Declarative State)
+                sanctionEventIdRef.current = triggerEvent.id; // STORE EVENT ID
+                setSanctionEndedPlayerId(triggerEvent.playerId || null);
+            }
 
 
-            // Update state: pause game and deactivate player if disqualified
-            setState(prev => {
-                let updatedPlayers = prev.players;
 
-                // CRITICAL: If disqualified, Force Deactivation
-                if (isDisqualified) {
-                    updatedPlayers = prev.players.map(p =>
-                        p.id === triggerEvent.playerId ? { ...p, active: false } : p
-                    );
-                }
 
-                return {
-                    ...prev,
-                    players: updatedPlayers
-                };
-            });
-
-            // Trigger Modal (via Declarative State)
-            sanctionEventIdRef.current = triggerEvent.id; // STORE EVENT ID
-            setSanctionEndedPlayerId(triggerEvent.playerId || null);
         }
 
     }, [state.gameTime, state.events, state.currentPeriod]);
@@ -4047,7 +4087,7 @@ export default function App() {
         if (mode === InputMode.SELECT_OUR_GK_FOR_SAVE) { recordEvent({ ...pendingEvent, id: generateId(), playerId } as any); return; }
         if (pendingEvent.type === 'SANCTION') {
             if (pendingEvent.sanctionType === SanctionType.TWO_MIN) {
-                const isStaff = player.position === Position.STAFF;
+                const isStaff = player.position === Position.STAFF || player.position === Position.COACH;
                 const eventToRecord = { ...pendingEvent, playerId, sanctionDuration: 2 };
                 if (isStaff) { setPendingEvent(eventToRecord); setMode(InputMode.SELECT_PLAYER_TO_SACRIFICE); }
                 else { recordEvent({ ...eventToRecord, id: generateId() } as any); }
@@ -4107,12 +4147,67 @@ export default function App() {
     const handleSanctionTypeSelect = (type: SanctionType) => { setPendingEvent(prev => ({ ...prev, sanctionType: type })); setMode(InputMode.SELECT_PLAYER_FOR_SANCTION); }
     const handleSanctionDurationSelect = (durationStr: string) => {
         const duration = parseInt(durationStr, 10);
-        const isStaff = state.players.find(p => p.id === pendingEvent.playerId)?.position === Position.STAFF;
+        const playerP = state.players.find(p => p.id === pendingEvent.playerId);
+        const isStaff = playerP?.position === Position.STAFF || playerP?.position === Position.COACH;
         if (isStaff && duration > 0) { setPendingEvent(prev => ({ ...prev, sanctionDuration: duration })); setMode(InputMode.SELECT_PLAYER_TO_SACRIFICE); }
         else { recordEvent({ ...pendingEvent, id: generateId(), sanctionDuration: duration } as any); }
     }
-    const handleSacrificeSelect = (playerToSacrifice: Player) => { setState(s => ({ ...s, players: s.players.map(p => p.id === playerToSacrifice.id ? { ...p, active: false } : p) })); recordEvent({ ...pendingEvent, id: generateId(), sacrificedPlayerId: playerToSacrifice.id } as any, false); }
-    const handlePlayerEnterAfterStaffSanction = (player: Player) => { setState(s => ({ ...s, players: s.players.map(p => p.id === player.id ? { ...p, active: true } : p), events: [{ id: generateId(), type: 'SUBSTITUTION', timestamp: s.gameTime, playerInId: player.id, isOpponent: false, period: s.currentPeriod, homeScoreSnapshot: s.homeScore, awayScoreSnapshot: s.awayScore } as MatchEvent, ...s.events] })); setMode(InputMode.IDLE); }
+    const handleSacrificeSelect = (playerToSacrifice: Player) => { recordEvent({ ...pendingEvent, id: generateId(), sacrificedPlayerId: playerToSacrifice.id } as any, false); }
+    const handlePlayerEnterAfterStaffSanction = (playerIn: Player) => {
+        setState(s => {
+            // Find the sacrificed player ID. 
+            // Priority 1: The ID stored when the sanction expired.
+            // Priority 2: Searching specifically for any player currently marked as sacrificed in the events.
+            const sacrificadoId = pendingStaffSanctionSacrificeId || s.players.find(p => {
+                return s.events.some(e =>
+                    e.type === 'SANCTION' &&
+                    e.sacrificedPlayerId === p.id &&
+                    getSanctionRemainingTime(e, s.gameTime, s.timerSettings.direction, s.currentPeriod, s.config).remaining >= -2 // Use small buffer
+                );
+            })?.id;
+
+            const sacrificado = s.players.find(p => p.id === sacrificadoId);
+
+            // Logic check: Will we free a spot?
+            // We swap if there's a sacrificed player on field who isn't the one entering.
+            const willSwap = !!(sacrificado && sacrificado.active && sacrificado.id !== playerIn.id);
+
+            const currentActiveFieldPlayers = s.players.filter(p => p.active && p.position !== Position.STAFF && p.position !== Position.COACH);
+            const currentActiveCount = currentActiveFieldPlayers.length;
+            const netChange = (playerIn.active ? 0 : 1) - (willSwap ? 1 : 0);
+
+            if (currentActiveCount + netChange > 7) {
+                alert(`CAMPO LLENO: Ya hay ${currentActiveCount} jugadores activos e intentas meter a ${playerIn.name}.\n\nPara evitar exceder los 7 jugadores, realiza un cambio manual sacando a alguien primero.`);
+                return s; // Cancel update
+            }
+
+            // Atomics swap
+            const newPlayers = s.players.map(p => {
+                if (p.id === playerIn.id) return { ...p, active: true };
+                if (willSwap && p.id === sacrificadoId) return { ...p, active: false };
+                return p;
+            });
+
+            // Build event
+            let newEvents = [...s.events];
+            newEvents.unshift({
+                id: generateId(),
+                type: 'SUBSTITUTION',
+                timestamp: s.gameTime,
+                playerInId: playerIn.id,
+                playerOutId: willSwap ? sacrificadoId : undefined,
+                isOpponent: false,
+                period: s.currentPeriod,
+                homeScoreSnapshot: s.homeScore,
+                awayScoreSnapshot: s.awayScore
+            } as MatchEvent);
+
+            return { ...s, players: newPlayers, events: newEvents };
+        });
+
+        setMode(InputMode.IDLE);
+        setPendingStaffSanctionSacrificeId(null); // Clean up state
+    }
     const handlePlayerEnterAfterSanction = (player: Player) => {
         // Mark sanction as RESOLVED to prevent loop
         if (sanctionEventIdRef.current) {
@@ -4255,15 +4350,48 @@ export default function App() {
     const handleGenerateReport = async () => { setLoadingReport(true); setAiReport(null); const report = await generateMatchReport(state); setAiReport(report); setLoadingReport(false); };
 
     // Helpers for Render
-    const activePlayers = useMemo(() => state.players.filter(p => p.active).sort((a, b) => { if (a.position === Position.STAFF && b.position !== Position.STAFF) return -1; if (a.position !== Position.STAFF && b.position === Position.STAFF) return 1; if (a.position === Position.GK && b.position !== Position.GK) return -1; if (a.position !== Position.GK && b.position === Position.GK) return 1; return a.number - b.number; }), [state.players]);
-    const activeFieldPlayers = useMemo(() => state.players.filter(p => p.active && p.position !== Position.STAFF).sort((a, b) => a.number - b.number), [state.players]);
+    const activePlayers = useMemo(() => state.players.filter(p => p.active).sort((a, b) => {
+        if (a.position === Position.COACH && b.position !== Position.COACH) return -1;
+        if (a.position !== Position.COACH && b.position === Position.COACH) return 1;
+        if (a.position === Position.STAFF && b.position !== Position.STAFF) return -1;
+        if (a.position !== Position.STAFF && b.position === Position.STAFF) return 1;
+        if (a.position === Position.GK && b.position !== Position.GK) return -1;
+        if (a.position !== Position.GK && b.position === Position.GK) return 1;
+        return a.number - b.number;
+    }), [state.players]);
+    const activeFieldPlayers = useMemo(() => state.players.filter(p => p.active && p.position !== Position.STAFF && p.position !== Position.COACH).sort((a, b) => a.number - b.number), [state.players]);
     const benchPlayers = useMemo(() => state.players.filter(p => !p.active).sort((a, b) => a.number - b.number), [state.players]);
 
     const activeOpponentPlayers = useMemo(() => (state.opponentPlayers || []).filter(p => p.active).sort((a, b) => a.number - b.number), [state.opponentPlayers]);
     const benchOpponentPlayers = useMemo(() => (state.opponentPlayers || []).filter(p => !p.active).sort((a, b) => a.number - b.number), [state.opponentPlayers]);
 
-    const currentRosterActive = rosterTab === 'HOME' ? activePlayers : activeOpponentPlayers;
-    const currentRosterBench = rosterTab === 'HOME' ? benchPlayers : benchOpponentPlayers;
+    // Ensure STAFF always appears in "En Pista" regardless of active status
+    const currentRosterActive = useMemo(() => {
+        if (rosterTab === 'HOME') {
+            const staffPlayers = state.players.filter(p => p.position === Position.STAFF || p.position === Position.COACH);
+            const activeNonStaff = state.players.filter(p => p.active && p.position !== Position.STAFF && p.position !== Position.COACH);
+            return [...staffPlayers, ...activeNonStaff].sort((a, b) => {
+                if (a.position === Position.COACH && b.position !== Position.COACH) return -1;
+                if (a.position !== Position.COACH && b.position === Position.COACH) return 1;
+                if (a.position === Position.STAFF && b.position !== Position.STAFF) return -1;
+                if (a.position !== Position.STAFF && b.position === Position.STAFF) return 1;
+                if (a.position === Position.GK && b.position !== Position.GK) return -1;
+                if (a.position !== Position.GK && b.position === Position.GK) return 1;
+                return a.number - b.number;
+            });
+        } else {
+            return activeOpponentPlayers;
+        }
+    }, [rosterTab, state.players, activeOpponentPlayers]);
+
+    const currentRosterBench = useMemo(() => {
+        if (rosterTab === 'HOME') {
+            // Exclude STAFF and COACH from bench since they are always in active list
+            return state.players.filter(p => !p.active && p.position !== Position.STAFF && p.position !== Position.COACH).sort((a, b) => a.number - b.number);
+        } else {
+            return benchOpponentPlayers;
+        }
+    }, [rosterTab, state.players, benchOpponentPlayers]);
 
     const sanctionEndOptions = useMemo(() => {
         if (!sanctionEndedPlayerId) return benchPlayers;
@@ -4280,11 +4408,19 @@ export default function App() {
         <div className="grid grid-cols-3 gap-3">
             {players.map(p => {
                 const disqualified = isPlayerDisqualified(p.id, state.events);
-                const sacrificed = isPlayerSacrificed(p.id);
+                const sacrificedSanction = state.events.find(e => e.type === 'SANCTION' && e.sacrificedPlayerId === p.id && getSanctionRemainingTime(e, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config).remaining > 0);
+                const sacrificed = !!sacrificedSanction;
+                let remainingTimeStr = '';
+                if (sacrificedSanction) {
+                    const { remaining } = getSanctionRemainingTime(sacrificedSanction, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config);
+                    const m = Math.floor(remaining / 60);
+                    const s = remaining % 60;
+                    remainingTimeStr = `${m}:${s.toString().padStart(2, '0')}`;
+                }
                 // Check for active 2-min sanction
                 const activeSanction = state.events.find(e => e.type === 'SANCTION' && e.playerId === p.id && e.sanctionType === SanctionType.TWO_MIN && e.sanctionDuration && e.sanctionDuration > 0 && getSanctionRemainingTime(e, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config).remaining > 0);
                 const disabled = disqualified || sacrificed || !!activeSanction;
-                const isStaff = p.position === Position.STAFF;
+                const isStaff = p.position === Position.STAFF || p.position === Position.COACH;
 
                 // Sanction History
                 const playerSanctions = state.events.filter(e => e.type === 'SANCTION' && e.playerId === p.id);
@@ -4306,10 +4442,15 @@ export default function App() {
 
 
                         {disqualified && <div className="absolute inset-0 flex items-center justify-center z-10 bg-black/20"><div className="w-16 h-0.5 bg-red-500 rotate-45 absolute" /><div className="w-16 h-0.5 bg-red-500 -rotate-45 absolute" /></div>}
-                        {sacrificed && <div className="absolute top-0 left-0 bg-orange-900/90 text-orange-200 text-[8px] px-1 rounded-br">Sanción CT</div>}
+                        {sacrificed && mode !== InputMode.SELECT_PLAYER_FOR_SANCTION && (
+                            <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center z-30 animate-in fade-in backdrop-blur-[1px]">
+                                <span className="text-orange-400 font-bold text-[10px] uppercase tracking-wider mb-1 drop-shadow-md">Sanción CT</span>
+                                <span className="text-white font-mono text-xl font-black tabular-nums tracking-widest drop-shadow-md">{remainingTimeStr}</span>
+                            </div>
+                        )}
                         {activeSanction && <div className="absolute bottom-0 inset-x-0 bg-yellow-600/90 text-white text-[10px] py-0.5 text-center z-20">Excluido</div>}
 
-                        <span className="text-2xl mt-1">{isStaff ? 'CT' : p.number}</span>
+                        <span className="text-2xl mt-1">{p.position === Position.COACH ? 'ENT' : (p.position === Position.STAFF ? 'CT' : p.number)}</span>
                         <span className="text-xs opacity-80 truncate w-full text-center">{p.name}</span>
                         {/* Sanction dots below name */}
                         {/* Sanction dots below name */}
@@ -4339,7 +4480,7 @@ export default function App() {
         </div>
     );
     const renderOptionGrid = <T extends string>(options: T[], onSelect: (opt: T) => void) => (<div className={`grid ${options.length > 4 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}> {options.map(opt => (<button key={opt} onClick={() => onSelect(opt)} className={`p-4 text-lg font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center leading-tight ${opt === ShotOutcome.GOAL ? 'bg-green-600 hover:bg-green-500 text-white' : opt === ShotOutcome.SAVE ? 'bg-red-600 hover:bg-red-500 text-white' : opt === ShotOutcome.POST ? 'bg-slate-600 hover:bg-slate-500 text-white' : opt === ShotOutcome.MISS ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600' : opt === SanctionType.RED ? 'bg-red-700 hover:bg-red-600 text-white' : opt === SanctionType.BLUE ? 'bg-blue-600 hover:bg-blue-500 text-white' : opt === SanctionType.YELLOW ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}>{['0', '2', '4'].includes(opt) ? `${opt} min` : opt}</button>))} </div>);
-    const renderPlayerForm = () => (<form onSubmit={handleSavePlayer} className="space-y-4"> <div className="grid grid-cols-4 gap-3"> {playerForm.position !== Position.STAFF && (<div className="col-span-1"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Dorsal</label><input type="number" required value={playerForm.number || ''} onChange={e => setPlayerForm(prev => ({ ...prev, number: parseInt(e.target.value) || 0 }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white text-center font-bold focus:border-handball-blue outline-none" /></div>)} <div className={playerForm.position === Position.STAFF ? "col-span-4" : "col-span-3"}><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Nombre</label><input required value={playerForm.name || ''} onChange={e => setPlayerForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nombre" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none" /></div></div> <div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Posición</label><select value={playerForm.position} onChange={e => setPlayerForm(prev => ({ ...prev, position: e.target.value as Position }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none">{Object.values(Position).map(pos => <option key={pos} value={pos}>{pos}</option>)}</select></div> <div className="pt-4 border-t border-slate-700"><h4 className="text-sm font-bold text-slate-300 mb-3 uppercase">Info Extra</h4><div className="grid grid-cols-2 gap-3 mb-3"><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Altura</label><input type="number" value={playerForm.height || ''} onChange={e => setPlayerForm(p => ({ ...p, height: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Peso</label><input type="number" value={playerForm.weight || ''} onChange={e => setPlayerForm(p => ({ ...p, weight: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div><div className="mb-3"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Teléfono</label><input type="tel" value={playerForm.phone || ''} onChange={e => setPlayerForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div> <div className="flex gap-3 pt-4">{/* Check if existing player */} {(rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) && (<button type="button" onClick={handleDeletePlayer} className="flex-1 py-3 bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Trash2 size={18} />Eliminar</button>)}<button type="button" onClick={() => setMode(InputMode.IDLE)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-handball-blue hover:bg-blue-600 text-white font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Save size={18} />Guardar</button></div> </form>);
+    const renderPlayerForm = () => (<form onSubmit={handleSavePlayer} className="space-y-4"> <div className="grid grid-cols-4 gap-3"> {playerForm.position !== Position.STAFF && playerForm.position !== Position.COACH && (<div className="col-span-1"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Dorsal</label><input type="number" required value={playerForm.number || ''} onChange={e => setPlayerForm(prev => ({ ...prev, number: parseInt(e.target.value) || 0 }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white text-center font-bold focus:border-handball-blue outline-none" /></div>)} <div className={playerForm.position === Position.STAFF || playerForm.position === Position.COACH ? "col-span-4" : "col-span-3"}><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Nombre</label><input required value={playerForm.name || ''} onChange={e => setPlayerForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nombre" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none" /></div></div> <div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Posición</label><select value={playerForm.position} onChange={e => setPlayerForm(prev => ({ ...prev, position: e.target.value as Position }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none">{Object.values(Position).map(pos => <option key={pos} value={pos}>{pos}</option>)}</select></div> <div className="pt-4 border-t border-slate-700"><h4 className="text-sm font-bold text-slate-300 mb-3 uppercase">Info Extra</h4><div className="grid grid-cols-2 gap-3 mb-3"><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Altura</label><input type="number" value={playerForm.height || ''} onChange={e => setPlayerForm(p => ({ ...p, height: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Peso</label><input type="number" value={playerForm.weight || ''} onChange={e => setPlayerForm(p => ({ ...p, weight: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div><div className="mb-3"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Teléfono</label><input type="tel" value={playerForm.phone || ''} onChange={e => setPlayerForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div> <div className="flex gap-3 pt-4">{/* Check if existing player */} {(rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) && (<button type="button" onClick={handleDeletePlayer} className="flex-1 py-3 bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Trash2 size={18} />Eliminar</button>)}<button type="button" onClick={() => setMode(InputMode.IDLE)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-handball-blue hover:bg-blue-600 text-white font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Save size={18} />Guardar</button></div> </form>);
     const renderEventEditor = () => {
         const currentTimestamp = eventForm.timestamp ?? 0;
         const currentMin = Math.floor(currentTimestamp / 60);
@@ -4603,7 +4744,7 @@ export default function App() {
                             {activePlayers.length === 0 ? (
                                 <div className="text-sm text-slate-500 italic text-center w-full py-2">Sin jugadores en pista</div>
                             ) : (
-                                activePlayers.map(p => {
+                                activePlayers.filter(p => p.position !== Position.STAFF && p.position !== Position.COACH).map(p => {
                                     const sanction = activeSanctions.find(s => s.playerId === p.id);
                                     const playerSanctions = state.events.filter(e => e.type === 'SANCTION' && e.playerId === p.id);
                                     const yellowCount = playerSanctions.filter(e => e.sanctionType === SanctionType.YELLOW).length;
@@ -4614,10 +4755,29 @@ export default function App() {
                                     const isDisqualified = isRed || isBlue;
                                     const formatSanctionTime = (seconds: number) => { const m = Math.floor(seconds / 60); const s = seconds % 60; return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`; };
                                     const isStaff = p.position === Position.STAFF;
+
+                                    // Sanción CT Logic
+                                    const sacrificedSanction = state.events.find(e => e.type === 'SANCTION' && e.sacrificedPlayerId === p.id && getSanctionRemainingTime(e, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config).remaining > 0);
+                                    const sacrificed = !!sacrificedSanction;
+                                    let remainingTimeStr = '';
+                                    if (sacrificedSanction) {
+                                        const { remaining } = getSanctionRemainingTime(sacrificedSanction, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config);
+                                        const m = Math.floor(remaining / 60);
+                                        const s = remaining % 60;
+                                        remainingTimeStr = `${m}:${s.toString().padStart(2, '0')}`;
+                                    }
+
                                     const baseClasses = isStaff ? 'bg-indigo-900 border-indigo-700' : isDisqualified ? 'bg-slate-900 border-red-900 cursor-not-allowed' : 'bg-slate-800 border-slate-700 hover:border-handball-blue hover:bg-slate-700';
 
                                     return (
-                                        <button key={p.id} onClick={() => { if (isDisqualified || isStaff || sanction) return; startSubstitutionFlow(p); }} disabled={isDisqualified} title={isStaff ? p.name : `Sustituir a ${p.name}`} className={`relative flex flex-col items-center justify-center rounded-lg p-0.5 min-w-[40px] min-h-[40px] sm:min-w-[60px] sm:min-h-[60px] border transition-all shrink-0 ${!isDisqualified && !isStaff ? 'active:scale-95' : 'cursor-default'} ${sanction ? 'bg-red-900/50 border-red-700 animate-pulse' : baseClasses}`}>
+                                        <button key={p.id} onClick={() => { if (isDisqualified || isStaff || sanction || sacrificed) return; startSubstitutionFlow(p); }} disabled={isDisqualified || sacrificed} title={isStaff ? p.name : `Sustituir a ${p.name}`} className={`relative flex flex-col items-center justify-center rounded-lg p-0.5 min-w-[40px] min-h-[40px] sm:min-w-[60px] sm:min-h-[60px] border transition-all shrink-0 ${!isDisqualified && !isStaff && !sacrificed ? 'active:scale-95' : 'cursor-default'} ${sanction ? 'bg-red-900/50 border-red-700 animate-pulse' : baseClasses}`}>
+
+                                            {sacrificed && (
+                                                <div className="absolute inset-0 bg-slate-900/60 flex flex-col items-center justify-center z-30 animate-in fade-in backdrop-blur-[1px] rounded-lg">
+                                                    <span className="text-orange-400 font-bold text-[7px] sm:text-[9px] uppercase tracking-wider mb-0.5 drop-shadow-md leading-none">Sanción CT</span>
+                                                    <span className="text-white font-mono text-sm sm:text-lg font-black tabular-nums tracking-widest drop-shadow-md leading-none">{remainingTimeStr}</span>
+                                                </div>
+                                            )}
 
                                             {!isBlue && !isRed && !(twoMinCount >= 3) && yellowCount > 0 && yellowCount < 2 && (<div className="absolute top-0.5 right-0.5 flex gap-0.5 z-10">{Array.from({ length: yellowCount }).map((_, i) => (<div key={i} className="w-1.5 h-1.5 bg-yellow-400 rounded-full shadow-sm border border-black/20" />))}</div>)}
                                             {isBlue && <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-blue-500 rounded-full shadow-sm border border-black/20 z-20" />}
@@ -4872,10 +5032,29 @@ export default function App() {
                                     {currentRosterActive.map(p => (
                                         <div key={p.id} className="flex justify-between p-3 bg-slate-800 mb-2 rounded-lg border-l-4 border-green-500 group">
                                             <div className="flex items-center gap-2 flex-1" onClick={() => togglePlayerActive(p.id)}>
-                                                <strong className="w-8 inline-block text-lg text-center">{p.position === Position.STAFF ? 'CT' : p.number}</strong>
+                                                <strong className="w-8 inline-block text-lg text-center">{p.position === Position.COACH ? 'ENT' : (p.position === Position.STAFF ? 'CT' : p.number)}</strong>
                                                 <div className="flex flex-col">
                                                     <span className="font-medium">{p.name}</span>
                                                     <span className="text-slate-400 text-xs">{p.position}</span>
+                                                    {/* Sanciones Visuales */}
+                                                    {(() => {
+                                                        const playerSanctions = state.events.filter(e => e.type === 'SANCTION' && e.playerId === p.id);
+                                                        const yellowCount = playerSanctions.filter(e => e.sanctionType === SanctionType.YELLOW).length;
+                                                        const twoMinCount = playerSanctions.filter(e => e.sanctionType === SanctionType.TWO_MIN).length;
+                                                        const isBlue = playerSanctions.some(e => e.sanctionType === SanctionType.BLUE);
+                                                        const isRed = playerSanctions.some(e => e.sanctionType === SanctionType.RED);
+
+                                                        if (yellowCount === 0 && twoMinCount === 0 && !isBlue && !isRed) return null;
+
+                                                        return (
+                                                            <div className="flex gap-1 mt-1">
+                                                                {!isBlue && !isRed && yellowCount > 0 && <span className="w-2 h-2 bg-yellow-400 rounded-full inline-block" />}
+                                                                {!isBlue && !isRed && twoMinCount > 0 && Array.from({ length: twoMinCount }).map((_, i) => <span key={i} className="w-2 h-2 bg-white border border-slate-500 rounded-full inline-block" />)}
+                                                                {(isRed || twoMinCount >= 3) && !isBlue && <span className="w-2 h-2 bg-red-600 rounded-full inline-block" />}
+                                                                {isBlue && <span className="w-2 h-2 bg-blue-600 rounded-full inline-block" />}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
@@ -4955,15 +5134,15 @@ export default function App() {
                     {mode === InputMode.SELECT_PLAYER_FOR_POSITIVE_ACTION && renderModal('Jugador', renderPlayerGrid(activePlayers, handlePlayerSelect))}
 
                     {mode === InputMode.SELECT_SANCTION_TYPE && renderModal('Sanción', renderOptionGrid(Object.values(SanctionType), handleSanctionTypeSelect))}
-                    {mode === InputMode.SELECT_PLAYER_FOR_SANCTION && renderModal('Jugador Sancionado', renderPlayerGrid(activePlayers, handlePlayerSelect))}
-                    {mode === InputMode.SELECT_SANCTION_DURATION && renderModal('Duración', renderOptionGrid(['0', '2', '4'], handleSanctionDurationSelect))}
+                    {mode === InputMode.SELECT_PLAYER_FOR_SANCTION && renderModal('Jugador Sancionado', renderPlayerGrid(currentRosterActive, handlePlayerSelect))}
+                    {mode === InputMode.SELECT_SANCTION_DURATION && renderModal('Duración', renderOptionGrid(['0', '2'], handleSanctionDurationSelect))}
                     {mode === InputMode.SELECT_PLAYER_TO_SACRIFICE && renderModal('¿Quién sale del campo?', renderPlayerGrid(activeFieldPlayers, handleSacrificeSelect))}
-                    {mode === InputMode.SELECT_PLAYER_TO_ENTER_AFTER_STAFF_SANCTION && renderModal('Fin Sanción Técnico: ¿Quién entra?', renderPlayerGrid(benchPlayers, handlePlayerEnterAfterStaffSanction))}
+                    {mode === InputMode.SELECT_PLAYER_TO_ENTER_AFTER_STAFF_SANCTION && renderModal('Fin Sanción Técnico: ¿Quién entra?', renderPlayerGrid(currentRosterBench, handlePlayerEnterAfterStaffSanction))}
 
                     {/* Declarative Sanction Modal - Shows whenever ID is set, ignoring Mode */}
                     {sanctionEndedPlayerId && renderModal('Fin Sanción: ¿Quién entra?', renderPlayerGrid(sanctionEndOptions, handlePlayerEnterAfterSanction))}
 
-                    {mode === InputMode.SELECT_PLAYER_FOR_SUBSTITUTION_IN && renderModal(`Sustituir a #${pendingSubOut?.number} ${pendingSubOut?.name}`, renderPlayerGrid(benchPlayers, handleSubstitutionConfirm))}
+                    {mode === InputMode.SELECT_PLAYER_FOR_SUBSTITUTION_IN && renderModal(`Sustituir a #${pendingSubOut?.number} ${pendingSubOut?.name}`, renderPlayerGrid(currentRosterBench, handleSubstitutionConfirm))}
                     {mode === InputMode.EDIT_PLAYER_DETAILS && renderModal(playerForm.id && (rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) ? 'Editar Jugador' : 'Nuevo Jugador', renderPlayerForm())}
                     {mode === InputMode.EDIT_EVENT_DETAILS && renderModal('Editar Evento', renderEventEditor())}
                     {mode === InputMode.IMPORT_ROSTER && renderModal('Importar Plantilla', renderImportRosterModal())}

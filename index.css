@@ -141,3 +141,101 @@ textarea {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/* ===== OPTIMIZACIONES PARA TABLETS ANTIGUAS ===== */
+
+/* Reducir o eliminar animaciones en dispositivos que lo prefieran */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Optimizar renderizado con CSS containment */
+.team-card,
+.player-card,
+.event-card {
+  contain: layout style paint;
+}
+
+/* Reducir complejidad visual en hover para tablets antiguas */
+@media (max-width: 1024px) {
+  .hover\:shadow-lg,
+  .hover\:shadow-xl {
+    box-shadow: none !important;
+  }
+  
+  /* Simplificar transiciones a solo opacity y transform */
+  .transition-all {
+    transition-property: opacity, transform !important;
+    transition-duration: 150ms !important;
+  }
+  
+  /* Desactivar animaciones complejas en tablets */
+  .animate-in {
+    animation: none !important;
+  }
+}
+
+/* Mejorar rendimiento de scroll con will-change solo cuando necesario */
+.scrollable-container {
+  will-change: auto; /* No usar will-change permanentemente */
+}
+
+.scrollable-container:hover,
+.scrollable-container:active {
+  will-change: scroll-position;
+}
+
+/* Reducir blur y backdrop-filter en dispositivos móviles (muy pesado) */
+@media (max-width: 1024px) {
+  .backdrop-blur,
+  .backdrop-blur-sm,
+  .backdrop-blur-md {
+    backdrop-filter: none !important;
+    background-color: rgba(15, 23, 42, 0.95) !important;
+  }
+}
+
+/* Optimizar rendimiento de gradientes en tablets */
+@media (max-width: 1024px) {
+  .bg-gradient-to-r,
+  .bg-gradient-to-b,
+  .bg-gradient-to-t {
+    background-image: none !important;
+  }
+}
+
+/* Forzar aceleración por hardware solo donde sea necesario */
+.gpu-accelerate {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Mejorar rendimiento táctil con passive event listeners hint */
+* {
+  /* Hint para el browser de usar passive listeners */
+  -ms-touch-action: manipulation;
+}
+
+/* Prevenir lag en scroll con overscroll-behavior */
+.overflow-y-auto,
+.overflow-auto {
+  overscroll-behavior-y: contain;
+  scroll-behavior: auto; /* No smooth en tablets viejas */
+}
+
+/* Reducir calidad de sombras en tablets antiguas */
+@media (max-width: 1024px) {
+  .shadow,
+  .shadow-sm,
+  .shadow-md,
+  .shadow-lg {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1) !important;
+  }
+}

@@ -7,7 +7,8 @@ export enum Position {
   RB = 'Lateral Der',
   RW = 'Extremo Der',
   PV = 'Pivote',
-  STAFF = 'Cuerpo Técnico'
+  STAFF = 'Cuerpo Técnico',
+  COACH = 'Entrenador'
 }
 
 export interface Player {
@@ -81,7 +82,8 @@ export enum TurnoverType {
 }
 
 export enum PositiveActionType {
-  ASSIST_BLOCK = 'Asistencia-Bloqueo',
+  ASSIST = 'Asistencia',
+  OFFENSIVE_BLOCK = 'Bloqueo',
   FORCE_PENALTY = "Fuerza 7m-2'",
   STEAL = 'Recuperación',
   GOOD_DEFENSE = 'Buena Df',
