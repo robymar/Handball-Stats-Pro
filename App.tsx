@@ -11,7 +11,6 @@ import { SplashScreen } from './components/SplashScreen.tsx';
 import { INITIAL_PLAYERS, RATING_WEIGHTS } from './constants.ts';
 import { MatchState, Player, MatchEvent, ShotZone, ShotOutcome, TurnoverType, SanctionType, ShotPlacement, Position, MatchConfig, MatchMetadata, PositiveActionType, Team } from './types.ts';
 import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud, Minus, Timer as TimerIcon, Play, Pause, RotateCcw, Share2, Search, Calendar, MapPin, AlertTriangle, AlertCircle, FileText, Smartphone, Laptop, Printer, Hash, MoreVertical, Copy } from 'lucide-react';
-import packageJson from './package.json';
 import { generateMatchReport } from './services/geminiService.ts';
 import { supabase } from './services/supabase.ts';
 import { RealtimeChannel } from '@supabase/supabase-js';
@@ -1749,7 +1748,7 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                 )
             }
             <div className="mt-6 text-center text-[10px] text-slate-600 uppercase font-bold tracking-widest opacity-50">
-                v{packageJson.version}
+                v1.1.69
             </div>
 
         </div >
@@ -3915,7 +3914,16 @@ export default function App() {
         const nextPeriodNum = state.currentPeriod + 1;
         const isOT = nextPeriodNum > state.config.regularPeriods;
         const nextDuration = isOT ? state.config.otDuration : state.config.regularDuration;
-        if (state.currentPeriod === state.config.regularPeriods && state.homeScore !== state.awayScore) { alert("Final del Partido."); return; }
+        if (state.currentPeriod === state.config.regularPeriods) {
+            // Si hay empate, termina el partido sin prórroga por defecto.
+            if (state.homeScore === state.awayScore) {
+                alert("Final del Partido (Empate).");
+                return;
+            } else {
+                alert("Final del Partido.");
+                return;
+            }
+        }
         console.log(`[PERIOD CHANGE] Cambiando de P${state.currentPeriod} a P${nextPeriodNum}`);
         setState(s => ({ ...s, currentPeriod: nextPeriodNum, isPaused: true, gameTime: s.config.timerDirection === 'DOWN' ? nextDuration * 60 : 0, timerSettings: { ...s.timerSettings, durationMinutes: nextDuration } }));
     };

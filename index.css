@@ -48,7 +48,7 @@ body {
   overscroll-behavior: contain;
 }
 
-/* Ocultar scrollbar pero mantener funcionalidad */
+/* Ocultar scrollbar pero mantener funcionalidad SOLAMENTE donde explícitamente se pida */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
@@ -56,6 +56,29 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Scrollbars Visibles Personalizados Globales */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+  /* Slate 900 */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #475569;
+  /* Slate 600 */
+  border-radius: 5px;
+  border: 2px solid #0f172a;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #64748b;
+  /* Slate 500 */
 }
 
 /* Áreas táctiles mínimas para botones (44x44px recomendado por Apple/Google) */
@@ -146,6 +169,7 @@ textarea {
 
 /* Reducir o eliminar animaciones en dispositivos que lo prefieran */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -165,17 +189,18 @@ textarea {
 
 /* Reducir complejidad visual en hover para tablets antiguas */
 @media (max-width: 1024px) {
+
   .hover\:shadow-lg,
   .hover\:shadow-xl {
     box-shadow: none !important;
   }
-  
+
   /* Simplificar transiciones a solo opacity y transform */
   .transition-all {
     transition-property: opacity, transform !important;
     transition-duration: 150ms !important;
   }
-  
+
   /* Desactivar animaciones complejas en tablets */
   .animate-in {
     animation: none !important;
@@ -184,7 +209,8 @@ textarea {
 
 /* Mejorar rendimiento de scroll con will-change solo cuando necesario */
 .scrollable-container {
-  will-change: auto; /* No usar will-change permanentemente */
+  will-change: auto;
+  /* No usar will-change permanentemente */
 }
 
 .scrollable-container:hover,
@@ -194,6 +220,7 @@ textarea {
 
 /* Reducir blur y backdrop-filter en dispositivos móviles (muy pesado) */
 @media (max-width: 1024px) {
+
   .backdrop-blur,
   .backdrop-blur-sm,
   .backdrop-blur-md {
@@ -204,6 +231,7 @@ textarea {
 
 /* Optimizar rendimiento de gradientes en tablets */
 @media (max-width: 1024px) {
+
   .bg-gradient-to-r,
   .bg-gradient-to-b,
   .bg-gradient-to-t {
@@ -227,11 +255,13 @@ textarea {
 .overflow-y-auto,
 .overflow-auto {
   overscroll-behavior-y: contain;
-  scroll-behavior: auto; /* No smooth en tablets viejas */
+  scroll-behavior: auto;
+  /* No smooth en tablets viejas */
 }
 
 /* Reducir calidad de sombras en tablets antiguas */
 @media (max-width: 1024px) {
+
   .shadow,
   .shadow-sm,
   .shadow-md,
