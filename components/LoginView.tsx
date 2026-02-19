@@ -1,17 +1,28 @@
 
-import React, { useState } from 'react';
-import { supabase } from '../services/supabase';
+import React, { useState, useEffect } from 'react';
+import { auth } from '../services/firebase';
+import {
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    sendEmailVerification,
+    onAuthStateChanged,
+    sendPasswordResetEmail,
+    updateProfile,
+    User
+} from 'firebase/auth';
 import { Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Download, LogOut, Cloud, Upload, RefreshCw } from 'lucide-react';
-import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch } from '../services/storageService';
+import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch, syncTeamsDown, syncMatchesDown } from '../services/storageService';
 import { Team, MatchState } from '../types';
 
 interface LoginViewProps {
     onBack: () => void;
     onLoginSuccess: () => void;
     onSync?: () => void;
+    onViewCloudMatches?: () => void;
 }
 
-export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, onSync }) => {
+export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, onSync, onViewCloudMatches }) => {
     // --- AUTH STATE ---
     const [isRegistering, setIsRegistering] = useState(false);
     const [email, setEmail] = useState('');
@@ -20,29 +31,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const [user, setUser] = useState<User | null>(null);
 
     // --- NEW: Email confirmation state ---
     const [awaitingConfirmation, setAwaitingConfirmation] = useState(false);
-    const [confirmationEmail, setConfirmationEmail] = useState<string>('');
 
     // --- NEW: Resend confirmation email ---
     const resendConfirmationEmail = async () => {
-        if (!supabase || !confirmationEmail) return;
+        if (!auth.currentUser) return;
 
         setLoading(true);
         setError(null);
 
         try {
-            const { error } = await supabase.auth.resend({
-                type: 'signup',
-                email: confirmationEmail,
-                options: {
-                    emailRedirectTo: 'handballstats://auth'
-                }
-            });
-
-            if (error) throw error;
-
+            await sendEmailVerification(auth.currentUser);
             setMessage('📧 Email reenviado correctamente. Revisa tu bandeja de entrada (y spam).');
         } catch (err: any) {
             setError(err.message || 'Error al reenviar email');
@@ -57,33 +59,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
         setError(null);
         setMessage(null);
 
-        if (!supabase) {
-            setError("Error: Supabase no está configurado. Revisa las variables de entorno.");
-            setLoading(false);
-            return;
-        }
-
         try {
             if (isRegistering) {
                 // REGISTRO
-                const { data, error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        data: {
-                            full_name: fullName,
-                        },
-                        emailRedirectTo: 'handballstats://auth'
-                    },
-                });
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
-                if (error) throw error;
+                // Actualizar perfil con nombre completo
+                if (userCredential.user) {
+                    await updateProfile(userCredential.user, {
+                        displayName: fullName
+                    });
 
-                // Verificar si se requiere confirmación de email
-                // Si identities está vacío, significa que el email NO está confirmado y se envió un email
-                if (data?.user && !data.user.email_confirmed_at && data.user.identities?.length === 0) {
+                    // Enviar email de verificación
+                    await sendEmailVerification(userCredential.user);
+
                     setAwaitingConfirmation(true);
-                    setConfirmationEmail(email);
                     setMessage(
                         "¡Registro exitoso! 📧\n\n" +
                         "Te hemos enviado un email de confirmación a:\n" +
@@ -91,50 +81,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                         "Por favor revisa tu bandeja de entrada y haz clic en el enlace para activar tu cuenta.\n\n" +
                         "💡 El email puede tardar unos minutos en llegar. No olvides revisar la carpeta de spam."
                     );
-                } else if (data?.user && !data.user.email_confirmed_at) {
-                    setAwaitingConfirmation(true);
-                    setConfirmationEmail(email);
-                    setMessage(
-                        "¡Casi listo! 📧\n\n" +
-                        "Revisa tu email para confirmar tu cuenta antes de iniciar sesión."
-                    );
-                } else if (data?.user && data.user.email_confirmed_at) {
-                    // Usuario confirmado automáticamente (configuración sin confirmación obligatoria)
-                    setMessage("¡Registro exitoso! Ya puedes iniciar sesión.");
-                    setAwaitingConfirmation(false);
-                    // Cambiar a modo login después de 2 segundos
-                    setTimeout(() => {
-                        setIsRegistering(false);
-                        setMessage("Ahora inicia sesión con tu email y contraseña.");
-                    }, 2000);
                 }
             } else {
                 // LOGIN
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                });
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-                if (error) {
-                    // Mejorar mensajes de error específicos
-                    if (error.message.includes('Email not confirmed')) {
-                        setAwaitingConfirmation(true);
-                        setConfirmationEmail(email);
-                        throw new Error('⚠️ Tu email aún no ha sido confirmado.\n\nPor favor revisa tu bandeja de entrada y haz clic en el enlace de confirmación.\n\n💡 Si no encuentras el email, revisa la carpeta de spam.');
-                    }
-                    if (error.message.includes('Invalid login credentials')) {
-                        throw new Error('Email o contraseña incorrectos. Por favor verifica tus datos.');
-                    }
-                    throw error;
-                }
-
-                // Verificar si el email está confirmado (doble verificación)
-                if (data.user && !data.user.email_confirmed_at) {
+                // Verificar si el email está confirmado
+                if (!userCredential.user.emailVerified) {
                     setAwaitingConfirmation(true);
-                    setConfirmationEmail(email);
                     setError('⚠️ Tu email aún no ha sido confirmado.\n\nRevisa tu bandeja de entrada y haz clic en el enlace de confirmación antes de iniciar sesión.');
-                    // Cerrar sesión inmediatamente
-                    await supabase.auth.signOut();
+                    // Opcional: Cerrar sesión si queremos forzar verificación estricta antes de acceder
+                    // await signOut(auth);
+                    // return;
+
+                    // Firebase permite login sin verificación por defecto, pero nosotros lo controlamos aquí.
+                    // Si queremos bloquear el acceso:
+                    await signOut(auth);
                     return;
                 }
 
@@ -145,182 +107,105 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                 }, 500);
             }
         } catch (err: any) {
-            setError(err.message || "Ocurrió un error");
+            console.error("Auth Error:", err);
+            let errorMessage = "Ocurrió un error";
+            if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+                errorMessage = 'Email o contraseña incorrectos.';
+            } else if (err.code === 'auth/email-already-in-use') {
+                errorMessage = 'El email ya está registrado.';
+            } else if (err.code === 'auth/weak-password') {
+                errorMessage = 'La contraseña es demasiado débil (mínimo 6 caracteres).';
+            } else if (err.code === 'auth/too-many-requests') {
+                errorMessage = 'Demasiados intentos fallidos. Inténtalo más tarde.';
+            }
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
-
-
-    const [user, setUser] = useState<any>(null);
 
     // --- PASSWORD RESET STATE ---
     const [isResettingPassword, setIsResettingPassword] = useState(false);
-    const [newPassword, setNewPassword] = useState('');
 
-    React.useEffect(() => {
-        if (supabase) {
-            supabase.auth.getUser().then(({ data }) => {
-                if (data.user) setUser(data.user);
-            });
-
-            const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-                console.log('🔐 Auth Event:', event, session?.user?.email);
-
-                switch (event) {
-                    case "PASSWORD_RECOVERY":
-                        setIsResettingPassword(true);
-                        setError(null);
-                        setMessage("Ingresa tu nueva contraseña a continuación.");
-                        break;
-
-                    case "SIGNED_IN":
-                        // Verificar si el email está confirmado
-                        if (session?.user && !session.user.email_confirmed_at) {
-                            setError('⚠️ Tu email aún no ha sido confirmado.\n\nPor favor confirma tu email antes de continuar.');
-                            if (supabase) await supabase.auth.signOut();
-                            return;
-                        }
-                        setUser(session?.user);
-                        setIsResettingPassword(false);
-                        setMessage('✅ ¡Sesión iniciada correctamente!');
-                        // Limpiar mensaje después de 3 segundos
-                        setTimeout(() => setMessage(null), 3000);
-                        break;
-
-                    case "SIGNED_OUT":
-                        setUser(null);
-                        setIsResettingPassword(false);
-                        setMessage(null);
-                        break;
-
-                    case "USER_UPDATED":
-                        if (session?.user) {
-                            setUser(session.user);
-                            setMessage('✅ Perfil actualizado correctamente.');
-                            setTimeout(() => setMessage(null), 3000);
-                        }
-                        break;
-
-                    case "TOKEN_REFRESHED":
-                        console.log('🔄 Token refrescado automáticamente');
-                        // No mostrar nada al usuario, es automático
-                        break;
-
-                    case "INITIAL_SESSION":
-                        if (session?.user) {
-                            setUser(session.user);
-                            console.log('📱 Sesión inicial cargada');
-                        }
-                        break;
-
-                    default:
-                        console.log('⚠️ Evento de auth no manejado:', event);
+    // Listen for auth state changes
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            console.log("Auth State Changed:", currentUser?.email);
+            if (currentUser) {
+                // Si el usuario está logueado pero no verificado, y estamos en proceso de login, ya lo manejamos en handleAuth.
+                // Pero si recarga la página, queremos ver el estado.
+                setUser(currentUser);
+                if (currentUser.emailVerified) {
+                    setAwaitingConfirmation(false);
+                } else {
+                    // Si hay usuario pero no verificado, podría ser que acaba de registrarse o loguearse sin verificar
+                    // No forzamos logout aquí automáticamente para permitir reenvío de email, pero bloqueamos acceso a features
                 }
-            });
-
-            return () => {
-                authListener.subscription.unsubscribe();
-            };
-        }
+            } else {
+                setUser(null);
+            }
+        });
+        return () => unsubscribe();
     }, []);
 
-    // --- NEW: Polling para detectar confirmación de email ---
-    React.useEffect(() => {
-        if (!supabase || !awaitingConfirmation) return;
+    // Polling para chequear verificación de email si estamos esperando
+    useEffect(() => {
+        if (!user || !awaitingConfirmation) return;
 
         const pollInterval = setInterval(async () => {
             try {
-                const { data } = await supabase.auth.refreshSession();
-                if (data.user?.email_confirmed_at) {
+                await user.reload(); // Importante: recargar el usuario para actualizar emailVerified
+                if (user.emailVerified) {
                     setAwaitingConfirmation(false);
                     setMessage('✅ ¡Email confirmado! Ya puedes iniciar sesión.');
-                    // Cambiar a modo login automáticamente
                     setTimeout(() => {
-                        setIsRegistering(false);
+                        setIsRegistering(false); // Ir a login si veníamos de registro
+                        // Si ya estábamos logueados (porque firebase mantiene sesión), podríamos auto-entrar
+                        // Pero mejor dejar que el usuario haga login explícito o click en "Entrar"
+                        onLoginSuccess(); // O auto entrar si ya es válido
                     }, 2000);
                 }
             } catch (err) {
-                console.error('Error checking confirmation:', err);
+                console.error("Error reloading user:", err);
             }
-        }, 5000); // Cada 5 segundos
+        }, 5000);
 
         return () => clearInterval(pollInterval);
-    }, [awaitingConfirmation]);
+    }, [user, awaitingConfirmation]);
 
 
-
-    const handleUpdatePassword = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
-        setError(null);
-        if (!supabase) {
-            setError('Error: Supabase no está configurado.');
-            setLoading(false);
+    const handlePasswordReset = async () => {
+        if (!email) {
+            setError('Escribe tu email arriba para recuperar la contraseña.');
             return;
         }
+        setLoading(true);
+        setError(null);
+        setMessage(null);
+
         try {
-            const { error } = await supabase.auth.updateUser({ password: newPassword });
-            if (error) throw error;
-            setMessage("¡Contraseña actualizada correctamente!");
-            setTimeout(() => {
-                setIsResettingPassword(false);
-                setNewPassword('');
-                onLoginSuccess();
-            }, 1500);
+            await sendPasswordResetEmail(auth, email);
+            setMessage('¡Correo enviado! Revisa tu bandeja de entrada para restablecer tu contraseña.');
+            setIsResettingPassword(false);
         } catch (err: any) {
-            setError(err.message || "Error al actualizar la contraseña");
+            let errorMessage = 'Error al solicitar recuperación';
+            if (err.code === 'auth/user-not-found') errorMessage = 'No existe cuenta con este email.';
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
 
-    // ... (handleSyncDown, handleSyncUp, handleLogout remain the same) ...
     const handleSyncDown = async () => {
-        if (!supabase || !user) return;
+        if (!auth.currentUser) return;
         setLoading(true);
         setMessage(null);
         setError(null);
 
         try {
-            // 1. Sync Teams
-            const { data: teams, error: teamsError } = await supabase.from('teams').select('*').eq('user_id', user.id);
-            if (teamsError) throw teamsError;
-
-            let teamsCount = 0;
-            if (teams) {
-                for (const t of teams) {
-                    const localTeam: Team = {
-                        id: t.id,
-                        name: t.name,
-                        category: t.category,
-                        gender: t.gender,
-                        logo: t.logo_url,
-                        players: t.players || [], // Creating team with synced players
-                        createdAt: new Date(t.created_at).getTime()
-                    };
-                    // Use skipSync=true to avoid re-uploading immediately
-                    await saveTeam(localTeam, true);
-                    teamsCount++;
-                }
-            }
-
-            // 2. Sync Matches
-            const { data: matches, error: matchesError } = await supabase.from('matches').select('*').eq('user_id', user.id);
-            if (matchesError) throw matchesError;
-
-            let matchesCount = 0;
-            if (matches) {
-                for (const m of matches) {
-                    // match_data column contains the Full JSON
-                    if (m.match_data) {
-                        await saveMatch(m.match_data as MatchState, true);
-                        matchesCount++;
-                    }
-                }
-            }
-
-            setMessage(`Sincronizado: ${teamsCount} equipos y ${matchesCount} partidos descargados.`);
+            await syncTeamsDown();
+            await syncMatchesDown();
+            setMessage(`Datos sincronizados correctamente desde la nube.`);
             if (onSync) onSync();
         } catch (err: any) {
             setError(err.message || 'Error al descargar datos');
@@ -330,7 +215,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
     };
 
     const handleSyncUp = async () => {
-        if (!supabase || !user) return;
+        if (!auth.currentUser) return;
         setLoading(true);
         setMessage(null);
         setError(null);
@@ -345,9 +230,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
             }
 
             // 2. Upload Matches
-            // Process in reverse to maintain "Newest First" order in local index if saveMatch modifies it
             const localMatchesSummary = getMatchHistory();
-            const matchesToSync = [...localMatchesSummary].reverse();
+            // Process in reverse to maintain order logic if needed, though for sync it matters less
+            const matchesToSync = [...localMatchesSummary];
 
             let matchesCount = 0;
             for (const m of matchesToSync) {
@@ -367,14 +252,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
     };
 
     const handleLogout = async () => {
-        if (supabase) {
-            await supabase.auth.signOut();
-            setUser(null);
-            setMessage(null);
-        }
+        await signOut(auth);
+        setUser(null);
+        setMessage(null);
     };
 
-    if (user && !isResettingPassword) {
+    if (user && user.emailVerified && !isResettingPassword) {
         return (
             <div className="h-full flex items-center justify-center p-4 bg-slate-900">
                 <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl text-center">
@@ -421,6 +304,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                         </button>
 
                         <button
+                            onClick={() => onViewCloudMatches && onViewCloudMatches()}
+                            className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase rounded-xl transition-all shadow-lg flex items-center justify-center gap-3"
+                        >
+                            <Cloud size={24} /> Ver Mis Partidos en Nube
+                        </button>
+
+                        <button
                             onClick={onBack}
                             className="w-full py-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold uppercase rounded-xl transition-all flex items-center justify-center gap-2"
                         >
@@ -444,11 +334,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
             <div className="w-full max-w-md bg-slate-800 p-8 rounded-2xl border border-slate-700 shadow-2xl">
                 <div className="text-center mb-8">
                     <h2 className="text-3xl font-black text-white mb-2">
-                        {isResettingPassword ? 'Cambiar Contraseña' : (isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión')}
+                        {isResettingPassword ? 'Recuperar Contraseña' : (isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión')}
                     </h2>
                     <p className="text-slate-400">
                         {isResettingPassword
-                            ? 'Introduce tu nueva contraseña'
+                            ? 'Introduce tu email para enviarte un enlace'
                             : (isRegistering
                                 ? 'Guarda tus estadísticas en la nube ☁️'
                                 : 'Accede a tus datos sincronizados')}
@@ -470,31 +360,37 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                 )}
 
                 {isResettingPassword ? (
-                    <form onSubmit={handleUpdatePassword} className="space-y-4">
+                    <div className="space-y-4">
                         <div>
-                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nueva Contraseña</label>
+                            <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
                                 <input
-                                    type="password"
+                                    type="email"
                                     required
                                     className="w-full bg-slate-900 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-white focus:border-handball-blue outline-none transition-colors"
-                                    placeholder="••••••••"
-                                    minLength={6}
-                                    value={newPassword}
-                                    onChange={e => setNewPassword(e.target.value)}
+                                    placeholder="ejemplo@email.com"
+                                    value={email}
+                                    onChange={e => setEmail(e.target.value)}
                                 />
                             </div>
                         </div>
 
                         <button
-                            type="submit"
+                            onClick={handlePasswordReset}
                             disabled={loading}
                             className="w-full py-4 bg-handball-blue hover:bg-blue-600 disabled:opacity-50 text-white font-bold uppercase rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-6"
                         >
-                            {loading ? 'Actualizando...' : 'Guardar Nueva Contraseña'}
+                            {loading ? 'Enviando...' : 'Enviar Enlace de Recuperación'}
                         </button>
-                    </form>
+                        <button
+                            type="button"
+                            onClick={() => setIsResettingPassword(false)}
+                            className="text-xs text-slate-400 hover:text-white mt-4 text-center w-full block transition-colors"
+                        >
+                            Cancelar
+                        </button>
+                    </div>
                 ) : (
                     <form onSubmit={handleAuth} className="space-y-4">
                         {isRegistering && (
@@ -545,31 +441,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                             </div>
                             <button
                                 type="button"
-                                onClick={async () => {
-                                    if (!email) {
-                                        setError('Escribe tu email arriba para recuperar la contraseña.');
-                                        return;
-                                    }
-                                    setLoading(true);
-                                    setError(null);
-                                    setMessage(null);
-                                    if (!supabase) {
-                                        setError('Error: Supabase no está configurado.');
-                                        setLoading(false);
-                                        return;
-                                    }
-                                    try {
-                                        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-                                            redirectTo: 'handballstats://auth'
-                                        });
-                                        if (error) throw error;
-                                        setMessage('¡Correo enviado! Revisa tu bandeja de entrada para restablecer tu contraseña (busca el enlace de Handball Stats).');
-                                    } catch (err: any) {
-                                        setError(err.message || 'Error al solicitar recuperación');
-                                    } finally {
-                                        setLoading(false);
-                                    }
-                                }}
+                                onClick={() => setIsResettingPassword(true)}
                                 className="text-xs text-handball-blue hover:text-blue-400 mt-2 text-right w-full block transition-colors"
                             >
                                 ¿Olvidaste tu contraseña?
@@ -588,18 +460,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                 )}
 
                 <div className="mt-6 pt-6 border-t border-slate-700 text-center">
-                    <button
-                        onClick={() => { setIsRegistering(!isRegistering); setError(null); setMessage(null); }}
-                        className="text-slate-400 hover:text-white text-sm font-medium transition-colors"
-                    >
-                        {isRegistering
-                            ? '¿Ya tienes cuenta? Inicia sesión'
-                            : '¿No tienes cuenta? Regístrate gratis'}
-                    </button>
+                    {!isResettingPassword && (
+                        <button
+                            onClick={() => { setIsRegistering(!isRegistering); setError(null); setMessage(null); }}
+                            className="text-slate-400 hover:text-white text-sm font-medium transition-colors"
+                        >
+                            {isRegistering
+                                ? '¿Ya tienes cuenta? Inicia sesión'
+                                : '¿No tienes cuenta? Regístrate gratis'}
+                        </button>
+                    )}
                 </div>
 
-                {/* NEW: Show resend and skip buttons when awaiting confirmation */}
-                {awaitingConfirmation && (
+                {/* Resend and skip buttons when awaiting confirmation */}
+                {(awaitingConfirmation || (user && !user.emailVerified)) && (
                     <div className="mt-4 space-y-3 p-4 bg-blue-900/20 border border-blue-500/30 rounded-xl">
                         <p className="text-xs text-blue-200 text-center mb-3">
                             ⏳ Esperando confirmación de email...
@@ -612,17 +486,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
                             <RefreshCw size={16} />
                             {loading ? 'Enviando...' : 'Reenviar Email de Confirmación'}
                         </button>
-                        <button
-                            onClick={() => {
-                                setAwaitingConfirmation(false);
-                                setMessage(null);
-                                onBack();
-                            }}
-                            className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2"
-                        >
-                            <Cloud size={16} />
-                            Usar App Offline (Confirmar Más Tarde)
-                        </button>
+
+                        {!user?.emailVerified && (
+                            <button
+                                onClick={async () => {
+                                    setAwaitingConfirmation(false);
+                                    setMessage(null);
+                                    if (auth.currentUser) await signOut(auth);
+                                    onBack();
+                                }}
+                                className="w-full py-3 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold text-sm rounded-xl transition-all flex items-center justify-center gap-2"
+                            >
+                                <Cloud size={16} />
+                                Usar App Offline (Confirmar Más Tarde)
+                            </button>
+                        )}
                     </div>
                 )}
 

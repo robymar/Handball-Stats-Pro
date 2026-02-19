@@ -1,5 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+
+// GLOBAL POLYFILL FOR PROCESS
+if (typeof window !== 'undefined' && !window.process) {
+  // @ts-ignore
+  window.process = { env: {} };
+}
+
 import App from './App.tsx';
 
 const rootElement = document.getElementById('root');

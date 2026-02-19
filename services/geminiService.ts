@@ -3,11 +3,13 @@ import { MatchState, MatchEvent, Player, EventType, ShotOutcome, Position } from
 
 // Use a dummy key if explicitly requested not to use env, but standard instructions say use process.env.API_KEY.
 // If it fails in the preview environment without a key, it will just throw an error which we handle in UI.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+// VITE: Use import.meta.env instead of process.env
+const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || ''; // Ensure VITE_ prefix in .env
+const ai = new GoogleGenAI({ apiKey });
 
 export const generateMatchReport = async (matchState: MatchState): Promise<string> => {
-  if (!process.env.API_KEY) {
-    return "Error: API Key no configurada para generar informes.";
+  if (!apiKey) {
+    return "Error: API Key no configurada para generar informes (VITE_GOOGLE_API_KEY).";
   }
 
   // Prepare data for the prompt

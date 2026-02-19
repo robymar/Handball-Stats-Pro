@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User-scoped data
+    match /users/{userId} {
+      // Allow users to read/write their own user document (if we use it)
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Teams subcollection
+      match /teams/{teamId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      // Matches subcollection
+      match /matches/{matchId} {
+        // Owner has full access
+        allow write: if request.auth != null && request.auth.uid == userId;
+        // Allow read for owner (redundant if covered by collection group, but explicit is good)
+        allow read: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // Collection Group query for matches to support PublicMatchViewer
+    // This allows anyone to read any match document if they know the ID (or query for it)
+    match /{path=**}/matches/{matchId} {
+      allow read: if true;
+    }
+  }
+}

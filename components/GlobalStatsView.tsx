@@ -9,6 +9,7 @@ interface GlobalStatsViewProps {
     teamName: string;
     onBack: () => void;
     onLoadMatch: (id: string) => void;
+    preloadedMatches?: any[];
 }
 
 interface BreakdownStats {
@@ -70,7 +71,7 @@ interface AggregatedPlayerStats {
 type SortField = string;
 type SortDirection = 'asc' | 'desc';
 
-export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamName, onBack, onLoadMatch }) => {
+export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamName, onBack, onLoadMatch, preloadedMatches }) => {
     const [stats, setStats] = useState<AggregatedPlayerStats[]>([]);
     const [includedMatches, setIncludedMatches] = useState<MatchSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -159,10 +160,21 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 return entry;
             };
 
-            for (const summary of history) {
-                const match = loadMatch(summary.id);
-                if (!match) continue;
-                processedMatches.push(summary);
+            // Aggregation Logic extracted to function
+            const processMatch = (match: any, summary?: MatchSummary) => {
+                if (!summary) {
+                    // Create summary from match if not provided (e.g. preloaded)
+                    processedMatches.push({
+                        id: match.metadata.id,
+                        date: match.metadata.date || new Date().toISOString(),
+                        homeTeam: match.metadata.homeTeam,
+                        awayTeam: match.metadata.awayTeam,
+                        homeScore: match.homeScore,
+                        awayScore: match.awayScore
+                    });
+                } else {
+                    processedMatches.push(summary);
+                }
 
                 // Result
                 // Fallback: If isOurTeamHome missing, guess by name
@@ -174,24 +186,18 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 else if (ourScore === oppScore) drawCount++;
                 else lossCount++;
 
-                match.players.forEach(p => {
+                match.players.forEach((p: Player) => {
                     const entry = getEntry(p);
                     // Assume played if in roster? Or check events?
                     // Let's count as played if time > 0 OR present in list (simple participation)
                     entry.matchesPlayed++;
                     entry.playingTime += (p.playingTime || 0);
-
-                    // Calculate Match Rating
-                    const pEvents = match.events.filter(e => e.playerId === p.id);
-                    // We can reuse the aggregation logic below to sum up rating components, 
-                    // or calculate rating per match and sum it.
-                    // Aggregation is cleaner.
                 });
 
                 // Events
-                match.events.forEach(e => {
+                match.events.forEach((e: MatchEvent) => {
                     if (e.isOpponent || !e.playerId) return;
-                    const p = match.players.find(pl => pl.id === e.playerId);
+                    const p = match.players.find((pl: Player) => pl.id === e.playerId);
                     if (!p) return;
 
                     const entry = getEntry(p);
@@ -253,9 +259,9 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 });
 
                 // --- GK SCORING AGAINST ---
-                match.events.forEach(e => {
+                match.events.forEach((e: MatchEvent) => {
                     if (e.type === 'OPPONENT_SHOT' && e.isOpponent && e.playerId) {
-                        const p = match.players.find(pl => pl.id === e.playerId);
+                        const p = match.players.find((pl: Player) => pl.id === e.playerId);
                         if (!p) return;
                         const entry = getEntry(p);
 
@@ -263,6 +269,16 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                         if (e.shotOutcome === ShotOutcome.GOAL) entry.goalsAgainst++;
                     }
                 });
+            };
+
+            if (preloadedMatches) {
+                preloadedMatches.forEach(match => processMatch(match));
+            } else {
+                for (const summary of history) {
+                    const match = loadMatch(summary.id);
+                    if (!match) continue;
+                    processMatch(match, summary);
+                }
             }
 
             // --- CALCULATE RATINGS ---
