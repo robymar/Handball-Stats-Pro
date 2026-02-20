@@ -11,12 +11,12 @@ import { SplashScreen } from './components/SplashScreen.tsx';
 import { INITIAL_PLAYERS, RATING_WEIGHTS } from './constants.ts';
 import { MatchState, Player, MatchEvent, ShotZone, ShotOutcome, TurnoverType, SanctionType, ShotPlacement, Position, MatchConfig, MatchMetadata, PositiveActionType, Team } from './types.ts';
 import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud, Minus, Timer as TimerIcon, Play, Pause, RotateCcw, Share2, Search, Calendar, MapPin, AlertTriangle, AlertCircle, FileText, Smartphone, Laptop, Printer, Hash, MoreVertical, Copy } from 'lucide-react';
-import { generateMatchReport } from './services/geminiService.ts';
+
 import { auth } from './services/firebase.ts';
 import { applyActionCode } from 'firebase/auth';
 import { LoginView } from './components/LoginView.tsx';
 import { GlobalStatsView } from './components/GlobalStatsView.tsx';
-import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam } from './services/storageService.ts';
+import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam, syncTeamsDown, syncMatchesDown } from './services/storageService.ts';
 import { Capacitor } from '@capacitor/core';
 import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { StatsView } from './components/StatsView.tsx';
@@ -30,9 +30,6 @@ import { Share } from '@capacitor/share';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Toast } from '@capacitor/toast';
 
-// Declare XLSX global from CDN
-declare var XLSX: any;
-// declare module 'xlsx-js-style'; // Removed
 import ExcelJS from 'exceljs';
 import { parseExcelMatch } from './services/excelImportService.ts';
 
@@ -385,25 +382,42 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
         let parsedPlayers: Player[] | undefined = undefined;
 
         if (importFile) {
-            // Process Excel
+            // Process Excel using ExcelJS
             try {
-                const data = await importFile.arrayBuffer();
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                const json = XLSX.utils.sheet_to_json(worksheet);
+                const workbook = new ExcelJS.Workbook();
+                await workbook.xlsx.load(await importFile.arrayBuffer());
+                const worksheet = workbook.worksheets[0];
+                if (!worksheet) throw new Error('No hay hojas en el archivo');
 
-                if (json && json.length > 0) {
+                const headers: string[] = [];
+                const json: any[] = [];
+                worksheet.eachRow((row, rowNumber) => {
+                    if (rowNumber === 1) {
+                        // First row: headers
+                        row.eachCell({ includeEmpty: false }, (cell) => {
+                            headers.push(cell.value?.toString() || '');
+                        });
+                    } else {
+                        const rowData: any = {};
+                        row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                            const header = headers[colNumber - 1];
+                            if (header) rowData[header] = cell.value;
+                        });
+                        if (Object.keys(rowData).length > 0) json.push(rowData);
+                    }
+                });
+
+                if (json.length > 0) {
                     parsedPlayers = json.map((row: any) => ({
                         id: generateId(),
-                        number: row['Dorsal'] || row['dorsal'] || row['Number'] || 0,
-                        name: row['Nombre'] || row['nombre'] || row['Name'] || 'Desconocido',
-                        position: mapPositionString(row['Posicion'] || row['posicion'] || row['Position']),
+                        number: Number(row['Dorsal'] ?? row['dorsal'] ?? row['Number'] ?? 0),
+                        name: String(row['Nombre'] ?? row['nombre'] ?? row['Name'] ?? 'Desconocido'),
+                        position: mapPositionString(String(row['Posicion'] ?? row['posicion'] ?? row['Position'] ?? '')),
                         active: false,
                         playingTime: 0
                     }));
                     // Ensure staff
-                    if (parsedPlayers && !parsedPlayers.some((p: Player) => p.position === Position.STAFF)) {
+                    if (!parsedPlayers.some((p: Player) => p.position === Position.STAFF)) {
                         parsedPlayers.push({ id: generateId(), number: 0, name: 'Entrenador', position: Position.STAFF, active: false, playingTime: 0 });
                     }
                 }
@@ -1166,8 +1180,7 @@ function MainDashboard() {
     const [mode, setMode] = useState<InputMode>(InputMode.IDLE);
     const [pendingEvent, setPendingEvent] = useState<Partial<MatchEvent>>({});
     const [view, setView] = useState<ViewType>('TEAM_SELECT');
-    const [aiReport, setAiReport] = useState<string | null>(null);
-    const [loadingReport, setLoadingReport] = useState(false);
+
     const [matchHistory, setMatchHistory] = useState<MatchSummary[]>([]);
 
     // Setup & Editing state
@@ -1435,8 +1448,6 @@ function MainDashboard() {
         setPendingEvent({});
         setPlayerForm({});
         setEventForm({});
-        setAiReport(null);
-        setLoadingReport(false);
         setPendingSubOut(null);
         setSanctionEndedPlayerId(null);
         setSelectedPlayerId(null);
@@ -1491,8 +1502,6 @@ function MainDashboard() {
         setPendingEvent({});
         setPlayerForm({});
         setEventForm({});
-        setAiReport(null);
-        setLoadingReport(false);
         setPendingSubOut(null);
         setSanctionEndedPlayerId(null);
         setSelectedPlayerId(null);
@@ -1564,8 +1573,6 @@ function MainDashboard() {
         setPendingEvent({});
         setPlayerForm({});
         setEventForm({});
-        setAiReport(null);
-        setLoadingReport(false);
         setPendingSubOut(null);
         setSanctionEndedPlayerId(null);
         setSelectedPlayerId(null);
@@ -1749,8 +1756,6 @@ function MainDashboard() {
             setPendingEvent({});
             setPlayerForm({});
             setEventForm({});
-            setAiReport(null);
-            setLoadingReport(false);
             setPendingSubOut(null);
             setSanctionEndedPlayerId(null);
             setSelectedPlayerId(null);
@@ -3509,7 +3514,7 @@ function MainDashboard() {
         }
     };
 
-    const handleGenerateReport = async () => { setLoadingReport(true); setAiReport(null); const report = await generateMatchReport(state); setAiReport(report); setLoadingReport(false); };
+
 
     // Helpers for Render
     const activePlayers = useMemo(() => state.players.filter(p => p.active).sort((a, b) => {
@@ -4121,7 +4126,10 @@ function MainDashboard() {
         return (
             <LoginView
                 onBack={() => setView('INFO')}
-                onLoginSuccess={() => {
+                onLoginSuccess={async () => {
+                    // Sync cloud data down before refreshing UI
+                    await syncTeamsDown();
+                    await syncMatchesDown();
                     setView('INFO');
                 }}
                 onSync={handleSyncSuccess}
@@ -4148,7 +4156,7 @@ function MainDashboard() {
                     {view === 'MATCH' && renderMatchView()}
                     {view === 'STATS' && (
                         <ErrorBoundary viewName="Stats">
-                            <StatsView state={state} aiReport={aiReport} loadingReport={loadingReport} onGenerateReport={handleGenerateReport} onExportToExcel={handleExportStatsToExcel} onExportToTemplate={handleExportToTemplate} />
+                            <StatsView state={state} onExportToExcel={handleExportStatsToExcel} onExportToTemplate={handleExportToTemplate} />
                         </ErrorBoundary>
                     )}
                     {view === 'TIMELINE' && (

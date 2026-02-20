@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { auth } from '../services/firebase';
+import { auth } from '../services/firebase.ts';
 import {
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
@@ -12,8 +12,8 @@ import {
     User
 } from 'firebase/auth';
 import { Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Download, LogOut, Cloud, Upload, RefreshCw } from 'lucide-react';
-import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch, syncTeamsDown, syncMatchesDown } from '../services/storageService';
-import { Team, MatchState } from '../types';
+import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch, syncTeamsDown, syncMatchesDown } from '../services/storageService.ts';
+import { Team, MatchState } from '../types.ts';
 
 interface LoginViewProps {
     onBack: () => void;

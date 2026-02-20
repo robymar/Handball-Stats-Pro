@@ -10,15 +10,12 @@ import { Download } from 'lucide-react';
 
 interface StatsViewProps {
     state: MatchState;
-    aiReport: string | null;
-    loadingReport: boolean;
-    onGenerateReport: () => void;
     onExportToExcel: () => void;
     onExportToTemplate: (file: File) => void;
     readOnly?: boolean;
 }
 
-export const StatsView: React.FC<StatsViewProps> = ({ state, aiReport, loadingReport, onGenerateReport, onExportToExcel, onExportToTemplate, readOnly = false }) => {
+export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, onExportToTemplate, readOnly = false }) => {
     const [periodFilter, setPeriodFilter] = useState<'ALL' | number>('ALL');
     const [statsTab, setStatsTab] = useState<'GENERAL' | 'SHOOTING' | 'PLACEMENT' | 'POSITIVE' | 'TURNOVERS' | 'RIVAL'>('GENERAL');
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);

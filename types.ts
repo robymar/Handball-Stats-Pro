@@ -134,7 +134,7 @@ export interface MatchEvent {
 export interface MatchMetadata {
   id: string;
   teamId?: string; // Links to the Team in the club database
-  ownerTeamId?: string; // Deprecated, use teamId (kept for backward compatibility)
+  ownerTeamId?: string; // Also links to the Team (kept for backward compatibility with existing data)
   date: string; // ISO string
   homeTeam: string;
   homeTeamLogo?: string; // Base64 string for the logo

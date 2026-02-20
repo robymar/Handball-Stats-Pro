@@ -61,9 +61,6 @@ export const PublicMatchViewer: React.FC = () => {
             <div className="flex-1 overflow-hidden relative">
                 <StatsView
                     state={matchData}
-                    aiReport={null}
-                    loadingReport={false}
-                    onGenerateReport={() => { }}
                     onExportToExcel={() => { }}
                     onExportToTemplate={() => { }}
                     readOnly={true}

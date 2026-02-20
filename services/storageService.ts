@@ -11,9 +11,9 @@ import {
   query,
   where,
   orderBy,
-
   Timestamp,
-  collectionGroup
+  collectionGroup,
+  QueryDocumentSnapshot
 } from 'firebase/firestore';
 
 const STORAGE_KEY_PREFIX = 'hb_match_';
@@ -138,7 +138,8 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
 
       await setDoc(matchRef, {
         id: state.metadata.id,
-        teamId: state.metadata.ownerTeamId || null,
+        teamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
+        ownerTeamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
         homeTeam: state.metadata.homeTeam,
         awayTeam: state.metadata.awayTeam,
         homeScore: state.homeScore,
@@ -246,8 +247,8 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
 
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map(doc => {
-      const data = doc.data();
+    return querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
+      const data = d.data();
       return {
         id: data.id,
         date: data.date,
@@ -255,7 +256,7 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
         awayTeam: data.awayTeam,
         homeScore: data.homeScore,
         awayScore: data.awayScore,
-        ownerTeamId: data.teamId
+        ownerTeamId: data.ownerTeamId || data.teamId
       };
     });
 
@@ -274,8 +275,8 @@ export const getAllMatchesFullFromFirebase = async (): Promise<MatchState[]> => 
 
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map(doc => {
-      return doc.data().matchData as MatchState;
+    return querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
+      return d.data().matchData as MatchState;
     });
   } catch (e) {
     return [];
@@ -291,8 +292,8 @@ export const syncTeamsDown = async (): Promise<void> => {
     const querySnapshot = await getDocs(teamsRef);
 
     const cloudTeams: Team[] = [];
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
+    querySnapshot.forEach((d: QueryDocumentSnapshot) => {
+      const data = d.data();
       cloudTeams.push({
         id: data.id,
         name: data.name,
