@@ -142,6 +142,7 @@ export interface MatchMetadata {
   awayTeamLogo?: string; // Base64 string for the logo
   location: string;
   round: string;
+  category?: string; // Nuevo field para evitar mezcla de equipos (Cadete, Infantil, etc.)
   isOurTeamHome?: boolean; // New: Explicitly track if we are home or away
 }
 

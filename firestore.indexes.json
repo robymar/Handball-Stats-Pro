@@ -1,0 +1,15 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "matches",
+            "queryScope": "COLLECTION_GROUP",
+            "fields": [
+                {
+                    "fieldPath": "id",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

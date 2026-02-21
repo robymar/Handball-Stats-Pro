@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { getMatchListFromFirebase, getAllMatchesFullFromFirebase, MatchSummary } from '../services/storageService.ts';
 import { MatchState } from '../types.ts';
 import { GlobalStatsView } from './GlobalStatsView.tsx';
-import { Loader2, ArrowLeft, Calendar, Trophy, BarChart3, Cloud } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, Trophy, BarChart3, Cloud, Search, ChevronRight, Share2, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/firebase.ts';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -15,6 +15,8 @@ export const CloudMatchList: React.FC = () => {
     const [fullMatches, setFullMatches] = useState<MatchState[]>([]);
     const [loadingFull, setLoadingFull] = useState(false);
     const [user, setUser] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [selectedTeam, setSelectedTeam] = useState<string>('ALL');
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -32,40 +34,63 @@ export const CloudMatchList: React.FC = () => {
 
     const loadMatches = async () => {
         setLoading(true);
-        // getMatchListFromFirebase uses the current auth user internally
         const data = await getMatchListFromFirebase();
-        setMatches(data);
+        setMatches(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         setLoading(false);
     };
+
+    const teamList = Array.from(new Set(matches.map(m => JSON.stringify({ name: m.homeTeam, category: m.category }))))
+        .map(s => JSON.parse(s))
+        .sort((a, b) => a.name.localeCompare(b.name));
 
     const handleOpenGlobalStats = async () => {
         if (!user) return;
         setLoadingFull(true);
-        // getAllMatchesFullFromFirebase uses the current auth user internally
-        const data = await getAllMatchesFullFromFirebase();
+        let data = await getAllMatchesFullFromFirebase();
+
+        if (selectedTeam !== 'ALL') {
+            const [selName, selCat] = selectedTeam.split('|');
+            data = data.filter(m => m.metadata.homeTeam === selName && (selCat === 'undefined' || m.metadata.category === selCat));
+        }
+
         setFullMatches(data);
         setLoadingFull(false);
         setViewMode('GLOBAL_STATS');
     };
 
+    const filteredMatches = matches.filter(m => {
+        const matchesSearch = m.homeTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            m.awayTeam.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (m.location || '').toLowerCase().includes(searchTerm.toLowerCase());
+
+        let matchesTeam = true;
+        if (selectedTeam !== 'ALL') {
+            const [selName, selCat] = selectedTeam.split('|');
+            matchesTeam = m.homeTeam === selName && (selCat === 'undefined' || m.category === selCat);
+        }
+        return matchesSearch && matchesTeam;
+    });
+
     if (loading) return (
-        <div className="h-full flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
-            <Loader2 className="animate-spin" size={48} />
-            <p className="text-slate-400">Cargando partidos de la nube...</p>
+        <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-[#0df259]">
+            <Loader2 className="animate-spin mb-4" size={48} />
+            <p className="font-bold tracking-widest uppercase text-xs">Sincronizando Cloud...</p>
         </div>
     );
 
     if (!user) {
         return (
-            <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-4 text-center">
-                <Cloud size={64} className="text-slate-600 mb-4" />
-                <h2 className="text-2xl font-black text-white mb-2">Inicia Sesión</h2>
-                <p className="text-slate-400 mb-6">Necesitas iniciar sesión para ver tus partidos en la nube.</p>
+            <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-24 h-24 bg-white/5 rounded-[2rem] flex items-center justify-center mb-8 border border-white/5">
+                    <Cloud size={40} className="text-[#0df259]" />
+                </div>
+                <h2 className="text-4xl font-black text-white mb-4 italic tracking-tight">ACCESO A LA <span className="text-[#0df259]">NUBE</span></h2>
+                <p className="text-slate-500 mb-8 max-w-sm font-medium leading-relaxed">Inicia sesión para acceder a tu biblioteca personal de partidos y estadísticas avanzadas.</p>
                 <button
                     onClick={() => navigate('/login')}
-                    className="px-8 py-3 bg-handball-blue hover:bg-blue-600 text-white font-bold uppercase rounded-xl transition-all shadow-lg"
+                    className="px-8 py-4 bg-[#0df259] text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(13,242,89,0.3)]"
                 >
-                    Ir a Login
+                    Identificarse
                 </button>
             </div>
         );
@@ -73,110 +98,159 @@ export const CloudMatchList: React.FC = () => {
 
     if (viewMode === 'GLOBAL_STATS') {
         if (loadingFull) return (
-            <div className="h-full flex flex-col items-center justify-center bg-slate-900 text-white gap-4">
-                <Loader2 className="animate-spin" size={48} />
-                <p className="text-slate-400">Calculando estadísticas globales...</p>
+            <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-[#0df259]">
+                <Loader2 className="animate-spin mb-4" size={40} />
+                <p className="font-bold text-xs uppercase tracking-widest">Compilando Estadísticas Globales...</p>
             </div>
         );
-
-        // We need a teamId/Name for the header, usually we'd pick the first or most common ownerTeamId
-        // For now, let's use a generic name or try to infer from the first match
-        const teamName = fullMatches.length > 0 ? fullMatches[0].metadata.homeTeam : "Mi Equipo"; // Fallback
+        const teamName = fullMatches.length > 0 ? fullMatches[0].metadata.homeTeam : "Mi Equipo";
         const teamId = fullMatches.length > 0 ? (fullMatches[0].metadata.ownerTeamId || "cloud-team") : "cloud-team";
-        const team = user.displayName ? { name: user.displayName } : { name: teamName };
-
         return (
-            <GlobalStatsView
-                teamId={teamId}
-                teamName={teamName} // Or user.displayName?
-                onBack={() => setViewMode('LIST')}
-                onLoadMatch={(id) => navigate(`/match/${id}`)}
-                preloadedMatches={fullMatches}
-            />
+            <div className="min-h-screen bg-[#050505]">
+                <GlobalStatsView
+                    teamId={teamId}
+                    teamName={teamName}
+                    onBack={() => setViewMode('LIST')}
+                    onLoadMatch={(id) => navigate(`/match/${id}`)}
+                    preloadedMatches={fullMatches}
+                />
+            </div>
         );
     }
 
     return (
-        <div className="h-full bg-slate-900 p-4 sm:p-6 overflow-y-auto flex flex-col">
-            <div className="flex items-center justify-between mb-6 shrink-0">
-                <div className="flex items-center gap-4">
-                    <button onClick={() => navigate('/')} className="p-2 -ml-2 text-slate-400 hover:text-white transition-colors">
-                        <ArrowLeft size={32} />
-                    </button>
-                    <h1 className="text-xl sm:text-3xl font-black text-white uppercase tracking-wider flex items-center gap-2">
-                        <Cloud className="text-handball-blue w-6 h-6 sm:w-8 sm:h-8" /> Mis Partidos (Nube)
-                    </h1>
+        <div className="min-h-screen bg-[#050505] flex flex-col">
+            {/* Header section */}
+            <div className="bg-[#050505]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <button onClick={() => navigate('/')} className="p-2 text-slate-500 hover:text-white transition-colors">
+                            <ArrowLeft size={24} />
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
+                                <Cloud className="text-[#0df259]" size={20} /> MIS PARTIDOS
+                            </h1>
+                            <p className="text-[10px] font-black text-[#0df259]/60 uppercase tracking-widest leading-none">BIBLIOTECA EN LA NUBE</p>
+                        </div>
+                    </div>
+                    {matches.length > 0 && (
+                        <button
+                            onClick={handleOpenGlobalStats}
+                            className="bg-white/5 border border-white/10 hover:border-[#0df259]/50 hover:bg-[#0df259]/5 px-4 py-2 rounded-xl flex items-center gap-2 transition-all group"
+                        >
+                            <BarChart3 size={16} className="text-[#0df259]" />
+                            <span className="text-xs font-black uppercase text-white tracking-widest">Global Stats</span>
+                        </button>
+                    )}
                 </div>
-                {matches.length > 0 && (
-                    <button
-                        onClick={handleOpenGlobalStats}
-                        className="flex items-center gap-2 bg-handball-blue hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-bold transition-colors text-sm"
-                    >
-                        <BarChart3 size={18} />
-                        <span className="hidden sm:inline">Estadísticas Totales</span>
-                    </button>
+            </div>
+
+            {/* Sub-header/Filters */}
+            <div className="max-w-7xl mx-auto w-full px-4 py-6 space-y-4">
+                <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-[#0df259] transition-colors" size={18} />
+                    <input
+                        type="text"
+                        placeholder="Buscar por equipo o localización..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-white/5 border border-white/5 focus:border-[#0df259]/30 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium outline-none transition-all placeholder:text-slate-700"
+                    />
+                </div>
+
+                {teamList.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+                        <button
+                            onClick={() => setSelectedTeam('ALL')}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                        >
+                            Todos
+                        </button>
+                        {teamList.map((t: any) => {
+                            const id = `${t.name}|${t.category}`;
+                            return (
+                                <button
+                                    key={id}
+                                    onClick={() => setSelectedTeam(id)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                >
+                                    {t.name} {t.category ? `(${t.category})` : ''}
+                                </button>
+                            );
+                        })}
+                    </div>
                 )}
             </div>
 
-            {matches.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-4">
-                    <Cloud size={64} className="opacity-20" />
-                    <p>No hay partidos sincronizados en la nube.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {matches.map(match => (
-                        <div
-                            key={match.id}
-                            // Navigate to match viewer - using standard view for now, could be cloud view if logic differs
-                            // Assuming local viewer can handle loading from cloud or we need to ensure it's saved locally first?
-                            // The original code navigated to /match/:id which implies it loads from local or checks cloud
-                            onClick={() => {
-                                // If we want to view it, we might need to maximize it. 
-                                // Actually, standard flow is: click -> loads locally?
-                                // If it's a cloud list, usually we load it.
-                                // Let's assume /match/:id handles it or we should load it first?
-                                // Standard app flow seems to be: 
-                                // 1. User sees list. 
-                                // 2. User clicks match.
-                                // 3. Match loads.
-                                navigate(`/match/${match.id}`);
-                            }}
-                            className="bg-slate-800 rounded-xl border border-slate-700 p-4 cursor-pointer hover:border-handball-blue hover:shadow-lg transition-all group"
-                        >
-                            <div className="flex justify-between items-start mb-3">
-                                <span className="text-slate-400 text-xs font-bold flex items-center gap-1 bg-slate-900/50 px-2 py-1 rounded">
-                                    <Calendar size={12} />
-                                    {new Date(match.date).toLocaleDateString()}
-                                </span>
-                                <div className={`text-sm font-black px-2 py-1 rounded ${match.homeScore > match.awayScore ? 'bg-green-500/20 text-green-400' :
-                                    match.homeScore < match.awayScore ? 'bg-red-500/20 text-red-400' :
-                                        'bg-orange-500/20 text-orange-400'
-                                    }`}>
-                                    {match.homeScore} - {match.awayScore}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-white font-bold truncate max-w-[70%]">{match.homeTeam}</span>
-                                    <span className="text-xl font-mono text-slate-300">{match.homeScore}</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-white font-bold truncate max-w-[70%]">{match.awayTeam}</span>
-                                    <span className="text-xl font-mono text-slate-300">{match.awayScore}</span>
-                                </div>
-                            </div>
-
-                            <div className="mt-4 pt-4 border-t border-slate-700/50 flex justify-end">
-                                <span className="text-xs font-bold text-handball-blue group-hover:underline flex items-center gap-1">
-                                    VER DETALLES <ArrowLeft className="rotate-180" size={12} />
-                                </span>
-                            </div>
+            {/* List */}
+            <div className="max-w-7xl mx-auto w-full px-4 flex-1 pb-10">
+                {filteredMatches.length === 0 ? (
+                    <div className="h-96 flex flex-col items-center justify-center text-center opacity-40">
+                        <div className="w-16 h-16 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-center mb-4">
+                            <Search size={24} />
                         </div>
-                    ))}
-                </div>
-            )}
+                        <p className="font-bold text-sm tracking-widest text-white">NO SE HAN ENCONTRADO RESULTADOS</p>
+                        <p className="text-xs">Prueba con otra búsqueda o sincroniza nuevos partidos</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {filteredMatches.map(match => (
+                            <div
+                                key={match.id}
+                                onClick={() => navigate(`/match/${match.id}`)}
+                                className="group relative bg-[#0f0f0f] border border-white/5 rounded-[2rem] p-6 cursor-pointer hover:border-[#0df259]/30 hover:bg-[#151515] transition-all overflow-hidden"
+                            >
+                                {/* Highlight effect */}
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-[#0df259]/5 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
+
+                                <div className="flex justify-between items-start mb-6">
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1 flex items-center gap-1">
+                                            <Calendar size={10} /> {new Date(match.date).toLocaleDateString()}
+                                        </span>
+                                        <span className="text-xs font-bold text-[#0df259]/80 truncate max-w-[120px]">{match.location || 'HANDBALL ARENA'}</span>
+                                    </div>
+                                    <div className="p-2 bg-white/5 rounded-xl border border-white/5 group-hover:border-[#0df259]/20 group-hover:text-[#0df259] transition-all">
+                                        <ChevronRight size={16} />
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {match.homeTeamLogo ? <img src={match.homeTeamLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 bg-slate-900 rounded-lg" />}
+                                            <span className="font-black tracking-tight text-white group-hover:text-[#0df259] transition-colors">{match.homeTeam}</span>
+                                        </div>
+                                        <span className={`text-2xl font-black tabular-nums ${match.homeScore > match.awayScore ? 'text-[#0df259]' : 'text-slate-700'}`}>{match.homeScore}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            {match.awayTeamLogo ? <img src={match.awayTeamLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 bg-slate-900 rounded-lg" />}
+                                            <span className="font-black tracking-tight text-white group-hover:text-[#0df259] transition-colors">{match.awayTeam}</span>
+                                        </div>
+                                        <span className={`text-2xl font-black tabular-nums ${match.awayScore > match.homeScore ? 'text-[#0df259]' : 'text-slate-700'}`}>{match.awayScore}</span>
+                                    </div>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+                                    <div className="flex -space-x-2">
+                                        {/* Placeholder for small stats or user avatars */}
+                                        <div className="w-6 h-6 rounded-full bg-white/5 border border-[#050505] flex items-center justify-center text-[8px] font-bold text-slate-500">MVP</div>
+                                        <div className="w-6 h-6 rounded-full bg-[#0df259]/10 border border-[#050505] flex items-center justify-center text-[8px] font-bold text-[#0df259]">#00</div>
+                                    </div>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-[0.2em] group-hover:text-white transition-colors">Ver Detalles</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Footer */}
+            <footer className="py-10 text-center opacity-20">
+                <p className="text-[10px] font-black tracking-[0.5em] uppercase">Handball Stats Pro · Cloud Architecture</p>
+            </footer>
         </div>
     );
 };

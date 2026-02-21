@@ -1,6 +1,22 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --stitch-primary: #0df259;
+  --stitch-bg: #050505;
+  --stitch-card: #0f0f0f;
+  --stitch-border: rgba(255, 255, 255, 0.08);
+  --stitch-highlight: rgba(13, 242, 89, 0.15);
+}
+
+body {
+  font-family: 'Lexend', sans-serif;
+  background-color: var(--stitch-bg);
+  color: white;
+}
 
 /* Reset y configuración base */
 * {

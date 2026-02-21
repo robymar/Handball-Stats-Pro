@@ -1,6 +1,7 @@
 
 import { MatchState, Team } from '../types.ts';
 import { db, auth } from './firebase.ts';
+import { onAuthStateChanged } from 'firebase/auth'; // Added for reactive auth check if needed
 import {
   collection,
   doc,
@@ -13,6 +14,7 @@ import {
   orderBy,
   Timestamp,
   collectionGroup,
+  documentId,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 
@@ -28,6 +30,10 @@ export interface MatchSummary {
   awayTeam: string;
   homeScore: number;
   awayScore: number;
+  location?: string;
+  category?: string;
+  homeTeamLogo?: string;
+  awayTeamLogo?: string;
 }
 
 // --- TEAM MANAGEMENT ---
@@ -123,6 +129,7 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
       awayTeam: state.metadata.awayTeam,
       homeScore: state.homeScore,
       awayScore: state.awayScore,
+      category: state.metadata.category,
     });
 
     localStorage.setItem(INDEX_KEY, JSON.stringify(index));
@@ -146,6 +153,7 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
         awayScore: state.awayScore,
         date: state.metadata.date,
         location: state.metadata.location,
+        category: state.metadata.category || null,
         matchData: state, // Saving full JSON
         updatedAt: Timestamp.now()
       });
@@ -220,16 +228,29 @@ export const getMatchFromFirebase = async (id: string): Promise<MatchState | nul
   if (!auth.currentUser) return null;
   try {
     const user = auth.currentUser;
+    // 1. Direct doc lookup by document ID
     const matchRef = doc(db, 'users', user.uid, 'matches', id);
     const docSnap = await getDoc(matchRef);
 
     if (docSnap.exists()) {
       const data = docSnap.data();
-      return data.matchData as MatchState;
-    } else {
-      console.log("No such document!");
-      return null;
+      const state = (data.matchData || data) as MatchState;
+      if (state.metadata) state.metadata.id = id;
+      return state;
     }
+
+    // 2. Fallback: Query by 'id' field within user's matches (for legacy or ID mismatch)
+    const q = query(collection(db, 'users', user.uid, 'matches'), where('id', '==', id));
+    const querySnap = await getDocs(q);
+    if (!querySnap.empty) {
+      const data = querySnap.docs[0].data();
+      const state = (data.matchData || data) as MatchState;
+      if (state.metadata) state.metadata.id = id;
+      return state;
+    }
+
+    console.warn("Match not found in private collection by Doc ID or field ID:", id);
+    return null;
   } catch (err) {
     console.error("Firebase fetch exception:", err);
     return null;
@@ -250,12 +271,16 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
     return querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
       const data = d.data();
       return {
-        id: data.id,
+        id: d.id, // Siempre usamos el doc ID
         date: data.date,
         homeTeam: data.homeTeam,
         awayTeam: data.awayTeam,
         homeScore: data.homeScore,
         awayScore: data.awayScore,
+        location: data.location,
+        category: data.category || data.matchData?.metadata?.category,
+        homeTeamLogo: data.matchData?.metadata?.homeTeamLogo,
+        awayTeamLogo: data.matchData?.metadata?.awayTeamLogo,
         ownerTeamId: data.ownerTeamId || data.teamId
       };
     });
@@ -347,16 +372,51 @@ export const syncMatchesDown = async (): Promise<void> => {
 
 export const getPublicMatchFromFirebase = async (matchId: string): Promise<MatchState | null> => {
   try {
-    const matchesQuery = query(collectionGroup(db, 'matches'), where('id', '==', matchId));
-    const querySnapshot = await getDocs(matchesQuery);
+    // 1. Try finding by the 'id' field
+    const q1 = query(collectionGroup(db, 'matches'), where('id', '==', matchId));
+    const snap1 = await getDocs(q1);
+    if (!snap1.empty) return (snap1.docs[0].data().matchData || snap1.docs[0].data()) as MatchState;
 
-    if (!querySnapshot.empty) {
-      const doc = querySnapshot.docs[0];
-      return doc.data().matchData as MatchState;
-    }
+    // 2. Try finding by document id if field query fails (some docs might not have 'id' field)
+    const q2 = query(collectionGroup(db, 'matches'), where(documentId(), '==', matchId));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) return (snap2.docs[0].data().matchData || snap2.docs[0].data()) as MatchState;
+
     return null;
   } catch (err) {
     console.error("Error fetching public match:", err);
     return null;
   }
+};
+
+/**
+ * Universal matcher fetcher:
+ * 1. Checks LocalStorage (fastest)
+ * 2. Checks User's private collection (if logged in)
+ * 3. Checks Global collectionGroup (public share link)
+ */
+export const getMatchById = async (id: string): Promise<MatchState | null> => {
+  // 1. Local
+  const local = loadMatch(id);
+  if (local) return local;
+
+  // Wait for auth to initialize (max 2 seconds)
+  if (!auth.currentUser) {
+    await new Promise(resolve => {
+      const unsub = onAuthStateChanged(auth, (user) => {
+        unsub();
+        resolve(user);
+      });
+      setTimeout(resolve, 2000);
+    });
+  }
+
+  // 2. Private Cloud (if authenticated)
+  if (auth.currentUser) {
+    const privateMatch = await getMatchFromFirebase(id);
+    if (privateMatch) return privateMatch;
+  }
+
+  // 3. Public Cloud
+  return await getPublicMatchFromFirebase(id);
 };

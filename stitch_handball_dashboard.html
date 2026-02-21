@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Handball Match Stats Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        primary: "#0df259",
+                        secondary: "#3b82f6", // Electric Blue
+                        danger: "#ef4444",    // Red for misses/fouls
+                        "background-light": "#f5f8f6",
+                        "background-dark": "#111813",
+                        "surface-dark": "#1c2620",
+                        "surface-highlight": "#28392e"
+                    },
+                    fontFamily: {
+                        display: ["Lexend", "sans-serif"],
+                        body: ["Lexend", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "2xl": "1rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        /* Custom scrollbar for webkit browsers */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #111813;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #28392e;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3c5242;
+        }
+        .court-bg {
+            background-image: 
+                radial-gradient(circle at 50% 50%, transparent 0%, transparent 100%),
+                linear-gradient(0deg, rgba(255,255,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px);
+            background-size: 100% 100%, 20px 20px, 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 font-display min-h-screen flex overflow-hidden">
+<!-- Sidebar -->
+<aside class="w-64 bg-background-dark border-r border-surface-highlight flex-shrink-0 flex flex-col h-screen">
+<div class="p-6 flex items-center gap-3">
+<div class="size-10 rounded-xl bg-primary flex items-center justify-center text-background-dark">
+<span class="material-symbols-outlined font-bold">sports_handball</span>
+</div>
+<div>
+<h1 class="text-white text-lg font-bold leading-tight">ProHandball</h1>
+<p class="text-slate-400 text-xs font-medium">Analytics Suite</p>
+</div>
+</div>
+<nav class="flex-1 px-4 space-y-2 overflow-y-auto">
+<div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2 mt-4">Main Menu</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-surface-highlight text-white group transition-colors" href="#">
+<span class="material-symbols-outlined text-primary group-hover:scale-110 transition-transform">scoreboard</span>
+<span class="text-sm font-medium">Matches</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-highlight text-slate-400 hover:text-white group transition-colors" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">groups</span>
+<span class="text-sm font-medium">Teams</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-highlight text-slate-400 hover:text-white group transition-colors" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">person</span>
+<span class="text-sm font-medium">Players</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-highlight text-slate-400 hover:text-white group transition-colors" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">bar_chart</span>
+<span class="text-sm font-medium">Reports</span>
+</a>
+<div class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4 px-2 mt-8">Settings</div>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-highlight text-slate-400 hover:text-white group transition-colors" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">settings</span>
+<span class="text-sm font-medium">Configuration</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-highlight text-slate-400 hover:text-white group transition-colors" href="#">
+<span class="material-symbols-outlined group-hover:text-primary transition-colors">logout</span>
+<span class="text-sm font-medium">Log Out</span>
+</a>
+</nav>
+<div class="p-4 border-t border-surface-highlight">
+<div class="flex items-center gap-3">
+<div class="size-9 rounded-full bg-cover bg-center" data-alt="User profile picture of a coach" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuA7fzdr27_VvsDUVd8xqVgmi7B-lG4-inLW9ytk4o2JA9Autda-mecvC_W5x0cy1X1LtN9UtuTDiqdT2yMfi8xLNrGQexRGS4r_w6MTmfIuhITNQFEneYdsuHxzfBawDn6WDhiFS6xFP7uH8hUeLB84P7wea4wF1n7kJq6iUshYOlBpU6KbU9pVjYSfMOSBJ-m8e6FLTVKPCOlf5XGrVwHKxeqLKFXg5rpNGxJxLdjQcNlP1U-OLhsjc6ifhkqxz9Q3D36ZnfxHkA');"></div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-white">Coach Carter</span>
+<span class="text-xs text-slate-400">Head Coach</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 flex flex-col h-screen overflow-hidden bg-[#0d120e]">
+<!-- Header / Scoreboard -->
+<header class="bg-surface-dark border-b border-surface-highlight px-8 py-5 flex-shrink-0">
+<div class="max-w-7xl mx-auto flex items-center justify-between">
+<!-- Home Team -->
+<div class="flex items-center gap-6">
+<div class="text-right hidden md:block">
+<h2 class="text-2xl font-bold text-white tracking-tight">THW Kiel</h2>
+<p class="text-slate-400 text-sm">Home</p>
+</div>
+<div class="size-16 bg-white rounded-full p-1 shadow-lg shadow-black/50 flex items-center justify-center overflow-hidden border-2 border-primary">
+<img alt="Kiel Team Logo" class="object-cover size-full rounded-full" data-alt="Logo of handball team THW Kiel" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBB6tdm2FSgEpWpDH4JY52vxQikTuBOxVtSbi5uljlZrLiY69pwcKKZxfc9zl-HHknauhTaeNAbYP1MffXVJRK74anZJsrUKEMQyqnYAWHIwATTZkrIfh4BQdW4T0xsQ0EeUjHf0E2cdhZFXb_d1dLzTZlc1V8sR78DwaJ-6IXemns9D5JcXDskUmOE95OfWFmC9BomvWvEPb_Ic826G59sN80x9hsoPFhtc3hXLwXw97gGRZpGBzkwHrj5pfT75jiuiNZkY3OCdQ"/>
+</div>
+<div class="text-4xl font-bold text-white tabular-nums tracking-tighter">28</div>
+</div>
+<!-- Match Info -->
+<div class="flex flex-col items-center">
+<div class="bg-surface-highlight px-4 py-1 rounded-full border border-slate-700 mb-2">
+<span class="text-xs font-semibold text-primary uppercase tracking-widest">Live • 2nd Half</span>
+</div>
+<div class="text-5xl font-black text-primary tabular-nums tracking-tight font-mono">58:12</div>
+<div class="text-slate-400 text-xs mt-1">Stade Pierre de Coubertin, Paris</div>
+</div>
+<!-- Away Team -->
+<div class="flex items-center gap-6">
+<div class="text-4xl font-bold text-white tabular-nums tracking-tighter">24</div>
+<div class="size-16 bg-white rounded-full p-1 shadow-lg shadow-black/50 flex items-center justify-center overflow-hidden border-2 border-secondary">
+<img alt="Barcelona Team Logo" class="object-cover size-full rounded-full" data-alt="Logo of handball team Barcelona" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCmx0a5bxZW826tDJN-71z_zw1cvZeFu_gnfSt7JnpjNGl7Gr74llU7piDxFDI0Yu1kemQrZ692F3-oyB-0IbBbHJWa4XoHH20S3MupXuXVpCKhlxKvlxk_qefUtAArFOzgbPOsGJ8_WM8_CI8KGTEjU_e5fkLbSU3fHTuWA3d-zQrxGgZKDjIvqqu-1Q77Cf01nbcv5N86iitePHsLliDelzjNwgefb6OX6W4rpW0JP2gaRH5y8BlJAz9-vVBv0cywm784VQyagg"/>
+</div>
+<div class="text-left hidden md:block">
+<h2 class="text-2xl font-bold text-white tracking-tight">Barcelona</h2>
+<p class="text-slate-400 text-sm">Away</p>
+</div>
+</div>
+</div>
+</header>
+<!-- Dashboard Content Grid -->
+<div class="flex-1 overflow-hidden p-6 gap-6 grid grid-cols-1 lg:grid-cols-12 max-w-[1920px] mx-auto w-full">
+<!-- Left Column: Shot Map (Span 8) -->
+<div class="lg:col-span-8 flex flex-col gap-6 overflow-hidden h-full">
+<!-- Shot Map Card -->
+<div class="bg-surface-dark rounded-2xl border border-surface-highlight flex flex-col flex-1 min-h-0 shadow-xl overflow-hidden relative group">
+<div class="absolute top-4 left-4 z-10 flex gap-2">
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+<span class="size-2.5 rounded-full bg-primary animate-pulse"></span>
+<span class="text-xs font-medium text-white">Goal</span>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+<span class="size-2.5 rounded-full bg-secondary"></span>
+<span class="text-xs font-medium text-white">Save</span>
+</div>
+<div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10">
+<span class="size-2.5 rounded-full bg-danger"></span>
+<span class="text-xs font-medium text-white">Miss</span>
+</div>
+</div>
+<div class="absolute top-4 right-4 z-10">
+<button class="bg-primary text-black hover:bg-primary/90 transition px-4 py-2 rounded-lg text-sm font-bold shadow-lg shadow-primary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">filter_list</span>
+                             Filter
+                        </button>
+</div>
+<!-- Handball Court SVG Visualization -->
+<div class="relative w-full h-full bg-[#18201a] flex items-center justify-center p-8 court-bg">
+<!-- Court Base -->
+<div class="relative aspect-[2/1] w-full max-w-4xl border-4 border-white/20 rounded-lg bg-[#212e25]">
+<!-- Center Line -->
+<div class="absolute top-0 bottom-0 left-1/2 w-0.5 bg-white/20 -translate-x-1/2"></div>
+<div class="absolute top-1/2 left-1/2 w-24 h-24 border-2 border-white/20 rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+<!-- Left Goal Area (6m line) -->
+<div class="absolute top-1/2 left-0 w-48 h-64 border-r-2 border-white/20 rounded-r-full -translate-y-1/2 bg-white/5"></div>
+<!-- Left 9m Line (dashed) -->
+<div class="absolute top-1/2 left-0 w-64 h-80 border-r-2 border-dashed border-white/20 rounded-r-full -translate-y-1/2 pointer-events-none"></div>
+<!-- Left Goal -->
+<div class="absolute top-1/2 left-[-4px] w-2 h-16 bg-white -translate-y-1/2 border border-slate-400"></div>
+<!-- Right Goal Area (6m line) -->
+<div class="absolute top-1/2 right-0 w-48 h-64 border-l-2 border-white/20 rounded-l-full -translate-y-1/2 bg-white/5"></div>
+<!-- Right 9m Line (dashed) -->
+<div class="absolute top-1/2 right-0 w-64 h-80 border-l-2 border-dashed border-white/20 rounded-l-full -translate-y-1/2 pointer-events-none"></div>
+<!-- Right Goal -->
+<div class="absolute top-1/2 right-[-4px] w-2 h-16 bg-white -translate-y-1/2 border border-slate-400"></div>
+<!-- Data Points (Static Example) -->
+<!-- Goals -->
+<div class="absolute top-[45%] left-[15%] size-4 bg-primary rounded-full shadow-[0_0_10px_rgba(13,242,89,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20" title="Goal: M. Hansen"></div>
+<div class="absolute top-[55%] left-[18%] size-4 bg-primary rounded-full shadow-[0_0_10px_rgba(13,242,89,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20" title="Goal: N. Ekberg"></div>
+<div class="absolute top-[30%] right-[12%] size-4 bg-primary rounded-full shadow-[0_0_10px_rgba(13,242,89,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20"></div>
+<!-- Saves -->
+<div class="absolute top-[48%] left-[8%] size-4 bg-secondary rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20" title="Save: Landin"></div>
+<div class="absolute top-[52%] right-[6%] size-4 bg-secondary rounded-full shadow-[0_0_10px_rgba(59,130,246,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20"></div>
+<!-- Misses -->
+<div class="absolute top-[20%] left-[25%] size-4 bg-danger rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20" title="Miss"></div>
+<div class="absolute bottom-[25%] right-[22%] size-4 bg-danger rounded-full shadow-[0_0_10px_rgba(239,68,68,0.8)] border-2 border-white cursor-pointer hover:scale-150 transition-transform z-20"></div>
+</div>
+</div>
+<div class="px-6 py-4 bg-surface-dark border-t border-surface-highlight flex justify-between items-center">
+<h3 class="text-white font-semibold">Shot Analysis</h3>
+<div class="flex gap-4 text-sm">
+<span class="text-slate-400">Total Shots: <strong class="text-white">45</strong></span>
+<span class="text-slate-400">Efficiency: <strong class="text-primary">62%</strong></span>
+</div>
+</div>
+</div>
+<!-- Live Action Log -->
+<div class="bg-surface-dark rounded-2xl border border-surface-highlight flex-1 flex flex-col min-h-0 overflow-hidden shadow-lg">
+<div class="px-6 py-4 border-b border-surface-highlight flex justify-between items-center bg-surface-highlight/30">
+<h3 class="text-white text-lg font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">history</span>
+                            Live Action Log
+                        </h3>
+<button class="text-xs text-primary font-medium hover:underline">View Full Log</button>
+</div>
+<div class="overflow-y-auto flex-1">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-highlight/50 sticky top-0 z-10 backdrop-blur-sm">
+<tr>
+<th class="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Time</th>
+<th class="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Team</th>
+<th class="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Player</th>
+<th class="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Event</th>
+<th class="px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider text-right">Score</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-highlight text-sm">
+<tr class="hover:bg-surface-highlight/40 transition-colors group">
+<td class="px-6 py-3 text-slate-300 font-mono">58:12</td>
+<td class="px-6 py-3 text-white font-medium flex items-center gap-2">
+<div class="size-2 rounded-full bg-primary"></div> Kiel
+                                    </td>
+<td class="px-6 py-3 text-slate-300">#23 R. Dahmke</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 text-xs font-medium">
+                                            Goal
+                                        </span>
+</td>
+<td class="px-6 py-3 text-white font-bold text-right">28 - 24</td>
+</tr>
+<tr class="hover:bg-surface-highlight/40 transition-colors group">
+<td class="px-6 py-3 text-slate-300 font-mono">57:45</td>
+<td class="px-6 py-3 text-white font-medium flex items-center gap-2">
+<div class="size-2 rounded-full bg-secondary"></div> Barca
+                                    </td>
+<td class="px-6 py-3 text-slate-300">#10 D. Mem</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-danger/20 text-danger border border-danger/30 text-xs font-medium">
+                                            Miss
+                                        </span>
+</td>
+<td class="px-6 py-3 text-slate-500 font-medium text-right">27 - 24</td>
+</tr>
+<tr class="hover:bg-surface-highlight/40 transition-colors group">
+<td class="px-6 py-3 text-slate-300 font-mono">56:30</td>
+<td class="px-6 py-3 text-white font-medium flex items-center gap-2">
+<div class="size-2 rounded-full bg-primary"></div> Kiel
+                                    </td>
+<td class="px-6 py-3 text-slate-300">#1 N. Landin</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-secondary/20 text-secondary border border-secondary/30 text-xs font-medium">
+                                            Save
+                                        </span>
+</td>
+<td class="px-6 py-3 text-slate-500 font-medium text-right">27 - 24</td>
+</tr>
+<tr class="hover:bg-surface-highlight/40 transition-colors group">
+<td class="px-6 py-3 text-slate-300 font-mono">55:10</td>
+<td class="px-6 py-3 text-white font-medium flex items-center gap-2">
+<div class="size-2 rounded-full bg-secondary"></div> Barca
+                                    </td>
+<td class="px-6 py-3 text-slate-300">#13 A. Ariño</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 text-xs font-medium">
+                                            2min Susp.
+                                        </span>
+</td>
+<td class="px-6 py-3 text-slate-500 font-medium text-right">27 - 24</td>
+</tr>
+<tr class="hover:bg-surface-highlight/40 transition-colors group">
+<td class="px-6 py-3 text-slate-300 font-mono">54:05</td>
+<td class="px-6 py-3 text-white font-medium flex items-center gap-2">
+<div class="size-2 rounded-full bg-primary"></div> Kiel
+                                    </td>
+<td class="px-6 py-3 text-slate-300">#5 D. Duvnjak</td>
+<td class="px-6 py-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 text-xs font-medium">
+                                            Goal
+                                        </span>
+</td>
+<td class="px-6 py-3 text-white font-bold text-right">27 - 24</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column: Stats Panel (Span 4) -->
+<div class="lg:col-span-4 flex flex-col gap-6 h-full overflow-y-auto">
+<!-- Performance Metrics Card -->
+<div class="bg-surface-dark rounded-2xl border border-surface-highlight p-6 flex flex-col gap-6 shadow-lg">
+<h3 class="text-white text-lg font-bold flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-secondary">analytics</span>
+                        Performance Metrics
+                    </h3>
+<!-- GK Stats -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<span class="text-sm font-medium text-slate-300">Goalkeeper Save %</span>
+<span class="text-xl font-bold text-white">38%</span>
+</div>
+<div class="relative w-full h-3 bg-surface-highlight rounded-full overflow-hidden">
+<div class="absolute top-0 left-0 h-full w-[38%] bg-secondary rounded-full"></div>
+</div>
+<div class="flex justify-between text-xs text-slate-500">
+<span>Home: 38% (Landin)</span>
+<span>Away: 29% (Perez de Vargas)</span>
+</div>
+</div>
+<div class="h-px bg-surface-highlight"></div>
+<!-- 7m Efficiency -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<span class="text-sm font-medium text-slate-300">7m Penalty Efficiency</span>
+<span class="text-xl font-bold text-primary">80%</span>
+</div>
+<div class="flex gap-1 h-8">
+<!-- 4 of 5 bars filled -->
+<div class="flex-1 bg-primary rounded-sm opacity-100"></div>
+<div class="flex-1 bg-primary rounded-sm opacity-100"></div>
+<div class="flex-1 bg-primary rounded-sm opacity-100"></div>
+<div class="flex-1 bg-primary rounded-sm opacity-100"></div>
+<div class="flex-1 bg-surface-highlight rounded-sm"></div>
+</div>
+<div class="flex justify-between text-xs text-slate-500">
+<span>4/5 Converted</span>
+<span>Last: Goal (#18)</span>
+</div>
+</div>
+<div class="h-px bg-surface-highlight"></div>
+<!-- Suspensions -->
+<div class="space-y-4">
+<div class="flex justify-between items-end">
+<span class="text-sm font-medium text-slate-300">2-Min Suspensions</span>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-highlight/30 p-3 rounded-lg border border-surface-highlight">
+<span class="text-xs text-slate-400 block mb-1">Home (Kiel)</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-yellow-500">timer</span>
+<span class="text-2xl font-bold text-white">3</span>
+</div>
+</div>
+<div class="bg-surface-highlight/30 p-3 rounded-lg border border-surface-highlight">
+<span class="text-xs text-slate-400 block mb-1">Away (Barca)</span>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-yellow-500">timer</span>
+<span class="text-2xl font-bold text-white">5</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Top Scorer Mini Card -->
+<div class="bg-gradient-to-br from-surface-highlight to-surface-dark rounded-2xl border border-surface-highlight p-6 shadow-lg">
+<h4 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">Top Scorer (Home)</h4>
+<div class="flex items-center gap-4">
+<div class="relative">
+<div class="size-16 rounded-full bg-center bg-cover border-2 border-primary" data-alt="Portrait of top scorer Niclas Ekberg" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBH0YvC_U-SVDtYH2gH0m4lhLrIP-RSLbj9f0Ue_mRbaQBAPYD0qq0mhdIxUr-FOnPiiPTKhUofAzbxmCCEPySIzAlgGly8-M1_X95z30qFg-Ioi8cYCbEkN5TTri-pJkrmjz8pYX7ck6FMyad6-PdsJuM5Fe2efQM3Iy9fvgsS5tfHalQgJOEuu3EfupTJ7NhZOhDzb-tyWhEjUjg_bOGGuH3VlGoi8JuJ0OIdZHFqEsqqB6hnQ9Sk-a440bcKa-00QGoddk_N5w');"></div>
+<div class="absolute -bottom-1 -right-1 bg-primary text-black text-xs font-bold px-1.5 py-0.5 rounded shadow">#18</div>
+</div>
+<div>
+<h3 class="text-xl font-bold text-white">Niclas Ekberg</h3>
+<div class="flex gap-3 mt-1">
+<div class="flex flex-col">
+<span class="text-xs text-slate-500">Goals</span>
+<span class="text-sm font-mono text-primary font-bold">8/10</span>
+</div>
+<div class="w-px bg-slate-700"></div>
+<div class="flex flex-col">
+<span class="text-xs text-slate-500">Assists</span>
+<span class="text-sm font-mono text-white font-bold">3</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Possession Card -->
+<div class="bg-surface-dark rounded-2xl border border-surface-highlight p-6 flex-1 shadow-lg">
+<h3 class="text-white text-lg font-bold flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-slate-400">timelapse</span>
+                        Possession
+                    </h3>
+<div class="flex flex-col gap-4 justify-center h-48">
+<!-- Donut Chart Representation using CSS Conic Gradient -->
+<div class="relative size-32 mx-auto rounded-full" style="background: conic-gradient(#0df259 0% 55%, #3b82f6 55% 100%);">
+<div class="absolute inset-4 bg-surface-dark rounded-full flex items-center justify-center">
+<span class="text-slate-400 text-xs font-medium">vs</span>
+</div>
+</div>
+<div class="flex justify-between items-center px-4">
+<div class="text-center">
+<span class="block text-2xl font-bold text-primary">55%</span>
+<span class="text-xs text-slate-400 uppercase">Kiel</span>
+</div>
+<div class="text-center">
+<span class="block text-2xl font-bold text-secondary">45%</span>
+<span class="text-xs text-slate-400 uppercase">Barca</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</body></html>
