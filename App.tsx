@@ -16,7 +16,7 @@ import { auth } from './services/firebase.ts';
 import { applyActionCode } from 'firebase/auth';
 import { LoginView } from './components/LoginView.tsx';
 import { GlobalStatsView } from './components/GlobalStatsView.tsx';
-import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam, syncTeamsDown, syncMatchesDown } from './services/storageService.ts';
+import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam, syncTeamsDown, syncMatchesDown, setActiveTeam, joinTeamWithCode, generateTeamShareCode } from './services/storageService.ts';
 import { Capacitor } from '@capacitor/core';
 import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { StatsView } from './components/StatsView.tsx';
@@ -86,8 +86,8 @@ const DEFAULT_CONFIG: MatchConfig = {
 
 // Optimized with React.memo to prevent unnecessary re-renders
 const NavButton = React.memo(({ icon, label, active, onClick }: { icon: React.ReactNode, label: string, active: boolean, onClick: () => void }) => (
-    <button onClick={onClick} className={`flex flex-col items-center p-2 rounded-lg transition-colors w-16 ${active ? 'text-handball-blue bg-slate-900' : 'text-slate-500 hover:text-slate-300'}`}>
-        <div className="mb-1">{icon}</div><span className="text-[9px] font-bold uppercase">{label}</span>
+    <button onClick={onClick} className={`flex flex-col items-center p-2 rounded-lg transition-colors flex-1 max-w-[64px] ${active ? 'text-handball-blue bg-slate-900 border border-handball-blue/20' : 'text-slate-500 hover:text-slate-300'}`}>
+        <div className="mb-1">{icon}</div><span className="text-[8px] sm:text-[9px] font-bold uppercase truncate w-full text-center">{label}</span>
     </button>
 ), (prevProps, nextProps) => {
     // Only re-render if active or label changes (icon and onClick are stable)
@@ -364,6 +364,40 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
         };
     }, []);
 
+    const [isJoining, setIsJoining] = useState(false);
+    const [joinCode, setJoinCode] = useState('');
+    const [joiningStatus, setJoiningStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+    const handleJoinTeam = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!joinCode.trim()) return;
+
+        setJoiningStatus('loading');
+        const success = await joinTeamWithCode(joinCode);
+
+        if (success) {
+            setJoiningStatus('success');
+            setTimeout(() => {
+                setIsJoining(false);
+                setJoinCode('');
+                setJoiningStatus('idle');
+                // Refresh teams
+                if (onUpdateTeam) onUpdateTeam({} as any); // Hack to trigger refresh if needed
+                window.location.reload(); // Hard refresh to ensure all syncs are done
+            }, 1500);
+        } else {
+            setJoiningStatus('error');
+            setTimeout(() => setJoiningStatus('idle'), 3000);
+        }
+    };
+
+    const handleGenerateCode = async (team: Team) => {
+        const code = await generateTeamShareCode(team.id);
+        if (code && onUpdateTeam) {
+            onUpdateTeam({ ...team, shareCode: code });
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -434,25 +468,9 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                 category: newCategory,
                 gender: newGender as 'MALE' | 'FEMALE',
                 logo: newLogo || teamToEdit.logo
-                // Players remain same unless we want to allow re-import (disabled for this iteration for simplicity)
             };
             await saveTeam(updatedTeam);
-            // We need to refresh parent list. Since onCreateTeam refreshes list in parent, we might need a prop or just rely on state?
-            // Actually, parent passes 'teams'. We need to call a prop to update.
-            // But onCreateTeam is typed for creation. Let's patch it or add onUpdateTeam.
-            // Hack: use onCreateTeam but handle id in parent? No, tricky.
-            // Best way: just modify localStorage here and call a refresh callback if available, or force reload.
-            // Since we are in child, let's just use window.location.reload() or rely on the fact that saving to LS/Supabase works.
-            // But the UI won't update immediately without prop.
-            // Let's assume onSelectTeam can handle it or we add onUpdateTeam prop in next iteration.
-            // Wait, I can't add prop easily without changing interface.
-            // I will assume onCreateTeam logic in parent handles re-fetching if I mock it?
-            // No, let's adding onUpdateTeam to props quickly in replacement.
-            // Actually, I'll just use the `saveTeam` and then trigger a reload via checking props.
-            // Let's modify the interface in chunk 3.
 
-            // For now, let's just trigger a reload of window to be safe and simple, or better:
-            // We call onUpdateTeam which I will add to props.
             if (onUpdateTeam) {
                 onUpdateTeam(updatedTeam);
             } else {
@@ -485,7 +503,7 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                 {isCreating ? (
                     <form onSubmit={handleSubmit} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 animate-in fade-in zoom-in-95">
                         <h2 className="text-xl font-bold text-white mb-4">{teamToEdit ? 'Editar Equipo' : 'Crear Nuevo Equipo'}</h2>
-
+                        {/* ... existing form fields ... */}
                         <div className="flex gap-4 mb-4 items-start">
                             <label className="cursor-pointer w-24 h-24 rounded-full bg-slate-700 flex items-center justify-center border-2 border-dashed border-slate-500 hover:border-white transition-colors overflow-hidden relative group shrink-0">
                                 <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} />
@@ -564,40 +582,100 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                             <button type="submit" className="flex-1 py-3 bg-handball-blue text-white rounded-xl font-bold hover:bg-blue-600">{teamToEdit ? 'Guardar Cambios' : 'Crear Equipo'}</button>
                         </div>
                     </form>
+                ) : isJoining ? (
+                    <form onSubmit={handleJoinTeam} className="bg-slate-800 p-6 rounded-2xl border border-slate-700 animate-in fade-in zoom-in-95 space-y-4">
+                        <div className="flex items-center gap-3 text-indigo-400 mb-2">
+                            <Zap size={24} />
+                            <h2 className="text-xl font-bold text-white">Unirse a un Equipo</h2>
+                        </div>
+                        <p className="text-sm text-slate-400">Introduce el código compartido por el administrador del club para acceder al equipo y sus partidos.</p>
+
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Código de Invitación</label>
+                            <input
+                                autoFocus
+                                value={joinCode}
+                                onChange={e => setJoinCode(e.target.value.toUpperCase())}
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-4 text-2xl text-center font-mono tracking-widest text-white focus:border-indigo-500 outline-none"
+                                placeholder="ABCDEF"
+                                maxLength={6}
+                            />
+                        </div>
+
+                        {joiningStatus === 'success' && <div className="p-3 bg-green-900/20 text-green-400 border border-green-900/50 rounded-lg text-sm text-center font-bold">¡Bienvenido al equipo! Sincronizando datos...</div>}
+                        {joiningStatus === 'error' && <div className="p-3 bg-red-900/20 text-red-400 border border-red-900/50 rounded-lg text-sm text-center font-bold">Código no válido o error de conexión.</div>}
+
+                        <div className="flex gap-3 pt-2">
+                            <button type="button" onClick={() => setIsJoining(false)} className="flex-1 py-3 bg-slate-700 text-slate-300 rounded-xl font-bold">Cancelar</button>
+                            <button
+                                type="submit"
+                                disabled={joiningStatus === 'loading' || !joinCode}
+                                className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-500 disabled:opacity-50"
+                            >
+                                {joiningStatus === 'loading' ? 'Verificando...' : 'Unirse ahora'}
+                            </button>
+                        </div>
+                    </form>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {teams.map(team => (
-                                <div
-                                    key={team.id}
-                                    onClick={() => onSelectTeam(team)}
-                                    onTouchStart={() => handleTouchStart(team)}
-                                    onTouchEnd={handleTouchEnd}
-                                    onMouseDown={() => handleTouchStart(team)}
-                                    onMouseUp={handleTouchEnd}
-                                    onMouseLeave={handleTouchEnd}
-                                    className="group relative bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-handball-blue cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-900/20 flex items-center gap-4 select-none"
-                                >
-                                    <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-600 shrink-0">
-                                        {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : <Briefcase className="text-slate-500" />}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-xl font-bold text-white truncate">{team.name}</h3>
-                                        <p className="text-sm text-slate-500">{team.category} {team.gender === 'MALE' ? 'Masc' : 'Fem'}</p>
-                                        <p className="text-xs text-slate-600">{team.players.length} jugadores</p>
-                                    </div>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }}
-                                        className="absolute top-2 right-2 p-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                            {teams.map(team => {
+                                const isOwner = !team.ownerUid || team.ownerUid === auth.currentUser?.uid;
+                                return (
+                                    <div
+                                        key={team.id}
+                                        onClick={() => onSelectTeam(team)}
+                                        onTouchStart={() => handleTouchStart(team)}
+                                        className="group relative bg-slate-800 p-6 rounded-2xl border border-slate-700 hover:border-handball-blue cursor-pointer transition-all hover:shadow-lg hover:shadow-blue-900/20 flex items-center gap-4 select-none"
                                     >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </div>
-                            ))}
-                            <button onClick={() => setIsCreating(true)} className="bg-slate-800/50 p-6 rounded-2xl border-2 border-dashed border-slate-700 hover:border-handball-blue hover:bg-slate-800/80 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-white min-h-[120px]">
-                                <Plus size={32} />
-                                <span className="font-bold">Añadir Equipo</span>
-                            </button>
+                                        <div className="w-16 h-16 rounded-full bg-slate-700 flex items-center justify-center overflow-hidden border border-slate-600 shrink-0">
+                                            {team.logo ? <img src={team.logo} className="w-full h-full object-cover" /> : <Briefcase className="text-slate-500" />}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <h3 className="text-xl font-bold text-white truncate">{team.name}</h3>
+                                                {!isOwner && <Zap size={14} className="text-indigo-400" title="Equipo Compartido" />}
+                                            </div>
+                                            <p className="text-sm text-slate-500">{team.category} {team.gender === 'MALE' ? 'Masc' : 'Fem'}</p>
+
+                                            {isOwner && (
+                                                <div className="mt-2 text-[10px] font-bold">
+                                                    {team.shareCode ? (
+                                                        <span className="bg-slate-900 text-handball-blue px-2 py-0.5 rounded border border-handball-blue/30">CÓDIGO: {team.shareCode}</span>
+                                                    ) : (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleGenerateCode(team); }}
+                                                            className="text-slate-500 hover:text-white flex items-center gap-1"
+                                                        >
+                                                            <Share2 size={10} /> Generar código para Delegado
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                        {isOwner && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }}
+                                                className="absolute top-2 right-2 p-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            >
+                                                <Trash2 size={16} />
+                                            </button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+
+                            <div className="flex flex-col gap-4">
+                                <button onClick={() => setIsCreating(true)} className="bg-slate-800/50 p-6 rounded-2xl border-2 border-dashed border-slate-700 hover:border-handball-blue hover:bg-slate-800/80 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-white flex-1 min-h-[120px]">
+                                    <Plus size={32} />
+                                    <span className="font-bold">Añadir Equipo</span>
+                                </button>
+
+                                <button onClick={() => setIsJoining(true)} className="bg-indigo-900/20 p-4 rounded-2xl border-2 border-dashed border-indigo-500/30 hover:border-indigo-500 hover:bg-indigo-900/40 cursor-pointer transition-all flex items-center justify-center gap-2 text-indigo-400 hover:text-indigo-200">
+                                    <Zap size={20} />
+                                    <span className="font-bold">Unirse con Código</span>
+                                </button>
+                            </div>
                         </div>
 
                         <div className="mt-8 flex justify-center">
@@ -738,10 +816,10 @@ const TimelineView: React.FC<TimelineViewProps> = ({ state, onDeleteEvent, onEdi
                                 <span className="font-bold text-white">{timeMin}:{timeSec}</span>
                                 <span className="text-slate-500 text-[10px]">{e.period > state.config.regularPeriods ? `OT${e.period - state.config.regularPeriods}` : `P${e.period}`}</span>
                             </div>
-                            <div className={`flex-1 p-3 rounded-xl border ${colorClass} flex justify-between items-center`}>
-                                <div className="truncate mr-2 flex items-center gap-3">
-                                    <span className="text-xl">{icon}</span>
-                                    <span className="font-medium text-sm truncate">{text}</span>
+                            <div className={`flex-1 p-3 rounded-xl border ${colorClass} flex justify-between items-center min-w-0`}>
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <span className="text-xl shrink-0">{icon}</span>
+                                    <span className="font-medium text-xs sm:text-sm leading-tight">{text}</span>
                                 </div>
                                 <div className="flex items-center gap-3">
                                     {(e.homeScoreSnapshot !== undefined) && (
@@ -1081,12 +1159,14 @@ const InfoView: React.FC<InfoViewProps> = ({
                     <h3 className="text-lg font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
                         Historial ({matches.length})
                         <div className="flex gap-2">
-                            <button
-                                onClick={onToggleShowAll}
-                                className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition-colors border ${showAllMatches ? 'bg-handball-blue text-white border-handball-blue' : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'}`}
-                            >
-                                {showAllMatches ? 'Viendo Todos' : 'Ver Todos'}
-                            </button>
+                            {!getActiveTeam() && (
+                                <button
+                                    onClick={onToggleShowAll}
+                                    className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition-colors border ${showAllMatches ? 'bg-handball-blue text-white border-handball-blue' : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'}`}
+                                >
+                                    {showAllMatches ? 'Viendo Todos' : 'Ver Todos'}
+                                </button>
+                            )}
                             <button onClick={onRefresh} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors" title="Actualizar lista">
                                 <RefreshCw size={20} />
                             </button>
@@ -1406,6 +1486,7 @@ function MainDashboard() {
         saveTeam(newTeam);
         setTeams(getTeams());
         setCurrentTeam(newTeam);
+        setActiveTeam({ id: newTeam.id, name: newTeam.name, category: newTeam.category });
         setSetupHomeLogo(newTeam.logo);
         setSetupForm(prev => ({ ...prev, homeTeam: newTeam.name }));
 
@@ -1461,6 +1542,7 @@ function MainDashboard() {
 
     const handleSelectTeam = (team: Team) => {
         setCurrentTeam(team);
+        setActiveTeam({ id: team.id, name: team.name, category: team.category });
         setSetupHomeLogo(team.logo);
         setSetupForm(prev => ({ ...prev, homeTeam: team.name }));
 
@@ -1524,6 +1606,7 @@ function MainDashboard() {
     const handleSwitchTeam = () => {
         setView('TEAM_SELECT');
         setCurrentTeam(null);
+        setActiveTeam(null);
     };
 
     // Setup & Edit Match Handlers

@@ -36,6 +36,43 @@ export interface MatchSummary {
   awayTeamLogo?: string;
 }
 
+export interface ActiveTeamInfo {
+  id: string;
+  name: string;
+  category: string;
+}
+
+const ACTIVE_TEAM_KEY = 'hb_active_team';
+
+export const setActiveTeam = (team: ActiveTeamInfo | null): void => {
+  if (team) {
+    localStorage.setItem(ACTIVE_TEAM_KEY, JSON.stringify(team));
+  } else {
+    localStorage.removeItem(ACTIVE_TEAM_KEY);
+  }
+};
+
+export const clearLocalData = (): void => {
+  localStorage.removeItem(TEAMS_KEY);
+  localStorage.removeItem(INDEX_KEY);
+  localStorage.removeItem(ACTIVE_TEAM_KEY);
+  // Optional: clear match details themselves (prefixed with hb_match_)
+  Object.keys(localStorage).forEach(key => {
+    if (key.startsWith(STORAGE_KEY_PREFIX)) {
+      localStorage.removeItem(key);
+    }
+  });
+};
+
+export const getActiveTeam = (): ActiveTeamInfo | null => {
+  try {
+    const activeJson = localStorage.getItem(ACTIVE_TEAM_KEY);
+    return activeJson ? JSON.parse(activeJson) : null;
+  } catch (e) {
+    return null;
+  }
+};
+
 // --- TEAM MANAGEMENT ---
 
 export const getTeams = (): Team[] => {
@@ -76,6 +113,9 @@ export const saveTeam = async (team: Team, skipSync: boolean = false): Promise<v
         gender: team.gender,
         logoUrl: team.logo,
         players: team.players,
+        ownerUid: team.ownerUid || user.uid,
+        shareCode: team.shareCode || null,
+        sharedUids: team.sharedUids || [],
         updatedAt: Timestamp.now()
       });
 
@@ -142,11 +182,11 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
     try {
       const user = auth.currentUser;
       const matchRef = doc(db, 'users', user.uid, 'matches', state.metadata.id);
-
       await setDoc(matchRef, {
         id: state.metadata.id,
         teamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
         ownerTeamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
+        ownerUid: user.uid, // Track who uploaded the match
         homeTeam: state.metadata.homeTeam,
         awayTeam: state.metadata.awayTeam,
         homeScore: state.homeScore,
@@ -263,15 +303,27 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
   if (!auth.currentUser) return [];
   try {
     const user = auth.currentUser;
-    const matchesRef = collection(db, 'users', user.uid, 'matches');
-    const q = query(matchesRef, orderBy('date', 'desc')); // Requires index in some cases, but 'date' is string so might need adjustment if logic changes
+
+    // Get all team IDs I have access to (owned or shared)
+    // We rely on local teams cache which should be synced before calling this
+    const localTeams = getTeams();
+    const allTeamIds = localTeams.map(t => t.id);
+
+    if (allTeamIds.length === 0) return [];
+
+    // Query collectionGroup to find matches belonging to any of these teams
+    // This allows seeing matches from shared teams
+    const q = query(
+      collectionGroup(db, 'matches'),
+      where('ownerTeamId', 'in', allTeamIds)
+    );
 
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
+    const matches = querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
       const data = d.data();
       return {
-        id: d.id, // Siempre usamos el doc ID
+        id: d.id,
         date: data.date,
         homeTeam: data.homeTeam,
         awayTeam: data.awayTeam,
@@ -285,6 +337,9 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
       };
     });
 
+    // Sort by date manually as collectionGroup 'in' query with orderBy might require complex indexing
+    return matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
   } catch (e) {
     console.error("Exception fetching match list:", e);
     return [];
@@ -295,18 +350,34 @@ export const getAllMatchesFullFromFirebase = async (): Promise<MatchState[]> => 
   if (!auth.currentUser) return [];
   try {
     const user = auth.currentUser;
-    const matchesRef = collection(db, 'users', user.uid, 'matches');
-    const q = query(matchesRef, orderBy('date', 'desc'));
+    const localTeams = getTeams();
+    const allTeamIds = localTeams.map(t => t.id);
+
+    if (allTeamIds.length === 0) return [];
+
+    const q = query(
+      collectionGroup(db, 'matches'),
+      where('ownerTeamId', 'in', allTeamIds)
+    );
 
     const querySnapshot = await getDocs(q);
 
-    return querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
-      return d.data().matchData as MatchState;
+    const results: MatchState[] = [];
+    querySnapshot.forEach((d) => {
+      const data = d.data();
+      const state = (data.matchData || data) as MatchState;
+      if (state.metadata) {
+        state.metadata.id = d.id;
+        results.push(state);
+      }
     });
+
+    return results.sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
   } catch (e) {
+    console.error("Exception fetching full matches:", e);
     return [];
   }
-}
+};
 
 // Sync functions implementation (replacing legacy sync logic if needed)
 export const syncTeamsDown = async (): Promise<void> => {
@@ -326,6 +397,28 @@ export const syncTeamsDown = async (): Promise<void> => {
         gender: data.gender,
         logo: data.logoUrl,
         players: data.players,
+        ownerUid: data.ownerUid,
+        shareCode: data.shareCode,
+        sharedUids: data.sharedUids,
+        createdAt: data.updatedAt ? data.updatedAt.toMillis() : Date.now()
+      });
+    });
+
+    // --- New: Sync Shared Teams (where I am a member) ---
+    const sharedQ = query(collectionGroup(db, 'teams'), where('sharedUids', 'array-contains', user.uid));
+    const sharedSnap = await getDocs(sharedQ);
+    sharedSnap.forEach((d) => {
+      const data = d.data();
+      cloudTeams.push({
+        id: data.id,
+        name: data.name,
+        category: data.category,
+        gender: data.gender,
+        logo: data.logoUrl,
+        players: data.players,
+        ownerUid: data.ownerUid,
+        shareCode: data.shareCode,
+        sharedUids: data.sharedUids,
         createdAt: data.updatedAt ? data.updatedAt.toMillis() : Date.now()
       });
     });
@@ -358,16 +451,88 @@ export const syncTeamsDown = async (): Promise<void> => {
 export const syncMatchesDown = async (): Promise<void> => {
   if (!auth.currentUser) return;
   try {
+    const user = auth.currentUser;
+    // 1. My matches
     const matches = await getAllMatchesFullFromFirebase();
     for (const match of matches) {
-      // Save locally without triggering another sync up
       await saveMatch(match, true);
     }
-    console.log("Matches synced down from Firebase");
+
+    // 2. Fetch all matches for ALL teams I have (owned or shared)
+    const localTeams = getTeams();
+    const allTeamIds = localTeams.map(t => t.id);
+
+    if (allTeamIds.length > 0) {
+      // Find matches where ownerTeamId is in our team list
+      // This ensures Owners see Delegate matches and vice-versa
+      const sharedMatchesQ = query(collectionGroup(db, 'matches'), where('ownerTeamId', 'in', allTeamIds));
+      const sharedMatchesSnap = await getDocs(sharedMatchesQ);
+      for (const d of sharedMatchesSnap.docs) {
+        const data = d.data();
+        const matchData = (data.matchData || data) as MatchState;
+        await saveMatch(matchData, true);
+      }
+    }
+
+    console.log("Matches synced down (including shared)");
   } catch (error) {
     console.error("Error syncing matches down:", error);
   }
 }
+
+export const joinTeamWithCode = async (code: string): Promise<boolean> => {
+  if (!auth.currentUser) return false;
+  try {
+    const user = auth.currentUser;
+    const q = query(collectionGroup(db, 'teams'), where('shareCode', '==', code.toUpperCase()));
+    const snap = await getDocs(q);
+
+    if (snap.empty) return false;
+
+    const teamDoc = snap.docs[0];
+    const teamData = teamDoc.data();
+
+    // Add me to sharedUids
+    const sharedUids = teamData.sharedUids || [];
+    if (!sharedUids.includes(user.uid)) {
+      sharedUids.push(user.uid);
+      await setDoc(teamDoc.ref, { sharedUids }, { merge: true });
+    }
+
+    // Sync down everything to update UI
+    await syncTeamsDown();
+    await syncMatchesDown();
+
+    return true;
+  } catch (e) {
+    console.error("Join team error:", e);
+    return false;
+  }
+};
+
+export const generateTeamShareCode = async (teamId: string): Promise<string | null> => {
+  if (!auth.currentUser) return null;
+  try {
+    const user = auth.currentUser;
+    const teamRef = doc(db, 'users', user.uid, 'teams', teamId);
+
+    // Simple 6-char code
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    await setDoc(teamRef, { shareCode: code }, { merge: true });
+
+    // Update local cache
+    const teams = getTeams();
+    const idx = teams.findIndex(t => t.id === teamId);
+    if (idx >= 0) {
+      teams[idx].shareCode = code;
+      localStorage.setItem(TEAMS_KEY, JSON.stringify(teams));
+    }
+
+    return code;
+  } catch (e) {
+    return null;
+  }
+};
 
 
 export const getPublicMatchFromFirebase = async (matchId: string): Promise<MatchState | null> => {

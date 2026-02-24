@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { loadMatch, getMatchHistory, MatchSummary } from '../services/storageService.ts';
 import { Player, Position, ShotOutcome, TurnoverType, PositiveActionType, SanctionType, ShotZone, MatchEvent } from '../types.ts';
 import { RATING_WEIGHTS } from '../constants.ts';
-import { ArrowLeft, Trophy, Calendar, Activity, ShieldAlert, Download, MousePointerClick, BarChart3, Zap, Target, TrendingUp, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Trophy, Calendar, Activity, ShieldAlert, Download, MousePointerClick, BarChart3, Zap, Target, TrendingUp, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 interface GlobalStatsViewProps {
     teamId: string;
@@ -233,25 +233,25 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
 
             <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
                 {/* Stats Grid */}
-                <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                     {[
                         { label: 'Partidos', val: matchCount, color: 'text-white', icon: Calendar },
                         { label: 'Efectividad', val: `${Math.round((wins / (matchCount || 1)) * 100)}%`, color: 'text-[#0df259]', icon: TrendingUp },
                         { label: 'Goles/P', val: (stats.reduce((acc, s) => acc + s.goals, 0) / (matchCount || 1)).toFixed(1), color: 'text-blue-400', icon: Target },
                         { label: 'Paradas/P', val: (goalkeepers.reduce((acc, s) => acc + s.saves, 0) / (matchCount || 1)).toFixed(1), color: 'text-purple-400', icon: ShieldAlert }
                     ].map((idx, i) => (
-                        <div key={i} className="bg-[#0f0f0f] border border-white/5 rounded-[2rem] p-6 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity"><idx.icon size={48} /></div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{idx.label}</p>
-                            <p className={`text-3xl font-black ${idx.color}`}>{idx.val}</p>
+                        <div key={i} className="bg-[#0f0f0f] border border-white/5 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-5 group-hover:opacity-20 transition-opacity"><idx.icon size={32} className="sm:w-12 sm:h-12" /></div>
+                            <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{idx.label}</p>
+                            <p className={`text-xl sm:text-3xl font-black ${idx.color}`}>{idx.val}</p>
                         </div>
                     ))}
                 </section>
 
                 <div className="space-y-6">
-                    <nav className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+                    <nav className="flex gap-1 sm:gap-2 bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar scroll-smooth">
                         {[
-                            { id: 'GENERAL', label: 'Evolución', icon: Activity },
+                            { id: 'GENERAL', label: 'Resumen', icon: Activity },
                             { id: 'SHOOTING', label: 'Tiro', icon: Target },
                             { id: 'GOALKEEPERS', label: 'Portería', icon: ShieldAlert },
                             { id: 'POSITIVE', label: 'Aciertos', icon: Zap },
@@ -260,9 +260,9 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as GlobalTab)}
-                                className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-[#0df259] text-black' : 'text-slate-500 hover:text-white'}`}
+                                className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${activeTab === tab.id ? 'bg-[#0df259] text-black shadow-lg shadow-[#0df259]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                             >
-                                <tab.icon size={14} /> {tab.label}
+                                <tab.icon size={12} className="sm:w-3.5 sm:h-3.5" /> {tab.label}
                             </button>
                         ))}
                     </nav>

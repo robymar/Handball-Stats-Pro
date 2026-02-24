@@ -12,7 +12,7 @@ import {
     User
 } from 'firebase/auth';
 import { Mail, Lock, LogIn, UserPlus, AlertCircle, CheckCircle2, Download, LogOut, Cloud, Upload, RefreshCw } from 'lucide-react';
-import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch, syncTeamsDown, syncMatchesDown } from '../services/storageService.ts';
+import { saveTeam, saveMatch, getTeams, getMatchHistory, loadMatch, syncTeamsDown, syncMatchesDown, clearLocalData } from '../services/storageService.ts';
 import { Team, MatchState } from '../types.ts';
 
 interface LoginViewProps {
@@ -253,8 +253,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onBack, onLoginSuccess, on
 
     const handleLogout = async () => {
         await signOut(auth);
+        clearLocalData();
         setUser(null);
         setMessage(null);
+        if (onSync) onSync(); // Refresh parent state (teams, currentTeam)
     };
 
     if (user && user.emailVerified && !isResettingPassword) {

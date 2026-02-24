@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { getMatchListFromFirebase, getAllMatchesFullFromFirebase, MatchSummary } from '../services/storageService.ts';
+import { getMatchListFromFirebase, getAllMatchesFullFromFirebase, MatchSummary, getActiveTeam, getTeams, syncTeamsDown } from '../services/storageService.ts';
 import { MatchState } from '../types.ts';
 import { GlobalStatsView } from './GlobalStatsView.tsx';
 import { Loader2, ArrowLeft, Calendar, Trophy, BarChart3, Cloud, Search, ChevronRight, Share2, Filter } from 'lucide-react';
@@ -14,16 +14,20 @@ export const CloudMatchList: React.FC = () => {
     const [viewMode, setViewMode] = useState<'LIST' | 'GLOBAL_STATS'>('LIST');
     const [fullMatches, setFullMatches] = useState<MatchState[]>([]);
     const [loadingFull, setLoadingFull] = useState(false);
+    const [userTeams, setUserTeams] = useState<any[]>([]);
     const [user, setUser] = useState<any>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedTeam, setSelectedTeam] = useState<string>('ALL');
+    const [selectedTeam, setSelectedTeam] = useState<string>(() => {
+        const active = getActiveTeam();
+        return active ? active.id : 'ALL';
+    });
     const navigate = useNavigate();
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             if (currentUser) {
                 setUser(currentUser);
-                loadMatches();
+                initCloud();
             } else {
                 setUser(null);
                 setLoading(false);
@@ -32,14 +36,25 @@ export const CloudMatchList: React.FC = () => {
         return () => unsubscribe();
     }, []);
 
+    const initCloud = async () => {
+        setLoading(true);
+        await syncTeamsDown();
+        setUserTeams(getTeams());
+        await loadMatches();
+    };
+
     const loadMatches = async () => {
         setLoading(true);
+        // Load all matches the user has access to
         const data = await getMatchListFromFirebase();
+
+        // We set all matches. The 'filteredMatches' variable already handles 
+        // the UI filtering based on 'selectedTeam' state.
         setMatches(data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
         setLoading(false);
     };
 
-    const teamList = Array.from(new Set(matches.map(m => JSON.stringify({ name: m.homeTeam, category: m.category }))))
+    const teamList = Array.from(new Set(userTeams.map(t => JSON.stringify({ name: t.name, category: t.category || '' }))))
         .map(s => JSON.parse(s))
         .sort((a, b) => a.name.localeCompare(b.name));
 
@@ -48,9 +63,18 @@ export const CloudMatchList: React.FC = () => {
         setLoadingFull(true);
         let data = await getAllMatchesFullFromFirebase();
 
+        // APPLY THE SAME FILTERS AS THE UI
         if (selectedTeam !== 'ALL') {
-            const [selName, selCat] = selectedTeam.split('|');
-            data = data.filter(m => m.metadata.homeTeam === selName && (selCat === 'undefined' || m.metadata.category === selCat));
+            data = data.filter(m => m.metadata.ownerTeamId === selectedTeam);
+        }
+
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            data = data.filter(m =>
+                m.metadata.homeTeam.toLowerCase().includes(term) ||
+                m.metadata.awayTeam.toLowerCase().includes(term) ||
+                (m.metadata.location || '').toLowerCase().includes(term)
+            );
         }
 
         setFullMatches(data);
@@ -65,8 +89,7 @@ export const CloudMatchList: React.FC = () => {
 
         let matchesTeam = true;
         if (selectedTeam !== 'ALL') {
-            const [selName, selCat] = selectedTeam.split('|');
-            matchesTeam = m.homeTeam === selName && (selCat === 'undefined' || m.category === selCat);
+            matchesTeam = m.ownerTeamId === selectedTeam;
         }
         return matchesSearch && matchesTeam;
     });
@@ -103,8 +126,18 @@ export const CloudMatchList: React.FC = () => {
                 <p className="font-bold text-xs uppercase tracking-widest">Compilando Estadísticas Globales...</p>
             </div>
         );
-        const teamName = fullMatches.length > 0 ? fullMatches[0].metadata.homeTeam : "Mi Equipo";
+
+        // Get the name for the stats header
+        let teamName = "Estadísticas Globales";
+        if (selectedTeam !== 'ALL') {
+            const [selName] = selectedTeam.split('|');
+            teamName = selName;
+        } else if (fullMatches.length > 0) {
+            teamName = fullMatches[0].metadata.homeTeam;
+        }
+
         const teamId = fullMatches.length > 0 ? (fullMatches[0].metadata.ownerTeamId || "cloud-team") : "cloud-team";
+
         return (
             <div className="min-h-screen bg-[#050505]">
                 <GlobalStatsView
@@ -159,26 +192,25 @@ export const CloudMatchList: React.FC = () => {
                     />
                 </div>
 
-                {teamList.length > 1 && (
+                {userTeams.length > 0 && (
                     <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
                         <button
-                            onClick={() => setSelectedTeam('ALL')}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                            onClick={() => { setSelectedTeam('ALL'); setSearchTerm(''); }}
+                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' && !searchTerm ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
                         >
                             Todos
                         </button>
-                        {teamList.map((t: any) => {
-                            const id = `${t.name}|${t.category}`;
-                            return (
+                        {userTeams
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map((t: any) => (
                                 <button
-                                    key={id}
-                                    onClick={() => setSelectedTeam(id)}
-                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                    key={t.id}
+                                    onClick={() => setSelectedTeam(t.id)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === t.id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
                                 >
                                     {t.name} {t.category ? `(${t.category})` : ''}
                                 </button>
-                            );
-                        })}
+                            ))}
                     </div>
                 )}
             </div>

@@ -143,47 +143,47 @@ export const PublicMatchViewer: React.FC = () => {
                     <div className="absolute top-0 right-0 w-96 h-96 bg-[#0df259]/10 blur-[120px] -mr-48 -mt-48" />
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] -ml-32 -mb-32" />
 
-                    <div className="relative p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8 text-center md:text-left">
-                        <div className="flex-1 flex flex-col items-center md:items-end gap-4">
-                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-20 h-20 object-contain drop-shadow-2xl" />}
+                    <div className="relative p-6 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 text-center md:text-left">
+                        <div className="flex-1 flex flex-col items-center md:items-end gap-3 md:gap-4 w-full">
+                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
                             <div className="md:text-right">
-                                <h2 className="text-3xl md:text-5xl font-black">{matchData.metadata.homeTeam}</h2>
-                                <p className="text-[#0df259] font-bold text-sm tracking-widest uppercase">Local</p>
+                                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black truncate max-w-[200px] sm:max-w-none">{matchData.metadata.homeTeam}</h2>
+                                <p className="text-[#0df259] font-bold text-[10px] md:text-sm tracking-widest uppercase">Local</p>
                             </div>
                         </div>
 
                         <div className="flex flex-col items-center gap-2">
-                            <div className="flex items-center gap-6 font-black text-6xl md:text-8xl tabular-nums">
+                            <div className="flex items-center gap-4 md:gap-6 font-black text-5xl sm:text-6xl md:text-8xl tabular-nums">
                                 <span className={matchData.homeScore > matchData.awayScore ? "text-[#0df259]" : "text-white"}>{matchData.homeScore}</span>
                                 <span className="text-slate-800">:</span>
                                 <span className={matchData.awayScore > matchData.homeScore ? "text-[#0df259]" : "text-white text-opacity-80"}>{matchData.awayScore}</span>
                             </div>
-                            <div className="px-4 py-1.5 bg-white/5 rounded-full border border-white/5 text-xs font-mono text-slate-500">FINALIZADO</div>
+                            <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 uppercase">FINALIZADO</div>
                         </div>
 
-                        <div className="flex-1 flex flex-col items-center md:items-start gap-4">
-                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-20 h-20 object-contain drop-shadow-2xl" />}
+                        <div className="flex-1 flex flex-col items-center md:items-start gap-3 md:gap-4 w-full">
+                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
                             <div>
-                                <h2 className="text-3xl md:text-5xl font-black text-white/80">{matchData.metadata.awayTeam}</h2>
-                                <p className="text-slate-500 font-bold text-sm tracking-widest uppercase">Visitante</p>
+                                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-white/80 truncate max-w-[200px] sm:max-w-none">{matchData.metadata.awayTeam}</h2>
+                                <p className="text-slate-500 font-bold text-[10px] md:text-sm tracking-widest uppercase">Visitante</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="border-t border-white/5 p-6 bg-black/20 flex flex-wrap justify-center gap-6 md:gap-12">
+                    <div className="border-t border-white/5 p-4 md:p-6 bg-black/20 flex flex-wrap justify-center gap-4 md:gap-12">
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Efectividad</span>
-                            <span className="text-xl font-bold">{Math.round((matchData.homeScore / (matchData.events.filter(e => !e.isOpponent && e.type === 'SHOT').length || 1)) * 100)}%</span>
+                            <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Efectividad</span>
+                            <span className="text-lg md:text-xl font-bold">{Math.round((matchData.homeScore / (matchData.events.filter(e => !e.isOpponent && e.type === 'SHOT').length || 1)) * 100)}%</span>
                         </div>
-                        <div className="w-px h-8 bg-white/5 hidden md:block" />
+                        <div className="w-px h-6 md:h-8 bg-white/5 hidden sm:block" />
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Localización</span>
-                            <span className="text-sm font-bold truncate max-w-[150px]">{matchData.metadata.location || 'N/A'}</span>
+                            <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Localización</span>
+                            <span className="text-xs md:text-sm font-bold truncate max-w-[120px] md:max-w-[150px]">{matchData.metadata.location || 'N/A'}</span>
                         </div>
-                        <div className="w-px h-8 bg-white/5 hidden md:block" />
+                        <div className="w-px h-6 md:h-8 bg-white/5 hidden sm:block" />
                         <div className="flex flex-col items-center">
-                            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Fecha</span>
-                            <span className="text-sm font-bold">{matchData.metadata.date || 'N/A'}</span>
+                            <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Fecha</span>
+                            <span className="text-xs md:text-sm font-bold">{matchData.metadata.date || 'N/A'}</span>
                         </div>
                     </div>
                 </section>
@@ -251,7 +251,7 @@ export const PublicMatchViewer: React.FC = () => {
 
                     {/* Tabs & Main Tables */}
                     <div className="lg:col-span-2 space-y-6">
-                        <nav className="flex gap-2 bg-white/5 p-1.5 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar">
+                        <nav className="flex gap-1 sm:gap-2 bg-white/5 p-1 rounded-2xl border border-white/5 overflow-x-auto no-scrollbar scroll-smooth">
                             {[
                                 { id: 'OVERVIEW', label: 'Resumen', icon: Activity },
                                 { id: 'SHOOTING', label: 'Zonas', icon: Target },
@@ -263,9 +263,9 @@ export const PublicMatchViewer: React.FC = () => {
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id as WebTab)}
-                                    className={`flex items-center gap-2 px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-[#0df259] text-black shadow-lg shadow-[#0df259]/20' : 'text-slate-500 hover:text-white'}`}
+                                    className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${activeTab === tab.id ? 'bg-[#0df259] text-black shadow-lg shadow-[#0df259]/20 scale-[1.02]' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                                 >
-                                    <tab.icon size={14} /> {tab.label}
+                                    <tab.icon size={12} className="sm:w-3.5 sm:h-3.5" /> {tab.label}
                                 </button>
                             ))}
                         </nav>
@@ -347,6 +347,102 @@ export const PublicMatchViewer: React.FC = () => {
                                             );
                                         })}
                                     </div>
+                                </div>
+                            )}
+
+                            {activeTab === 'POSITIVE' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm min-w-[600px]">
+                                        <thead>
+                                            <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10">Jugador</th>
+                                                <th className="px-4 py-5 text-center">Total</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259]">Recup</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259]">Asist</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259]">Blocajes</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259]">Penaltis/2'</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {sortedPlayers.filter(p => (playerStatsMap.get(p.id)?.positiveActions || 0) > 0).length > 0 ? (
+                                                sortedPlayers.filter(p => (playerStatsMap.get(p.id)?.positiveActions || 0) > 0).map(p => {
+                                                    const s = playerStatsMap.get(p.id);
+                                                    const steals = matchData.events.filter(e => e.playerId === p.id && e.positiveActionType === PositiveActionType.STEAL).length;
+                                                    const assists = matchData.events.filter(e => e.playerId === p.id && (e.positiveActionType === PositiveActionType.ASSIST || e.positiveActionType === PositiveActionType.OFFENSIVE_BLOCK)).length;
+                                                    const blocks = matchData.events.filter(e => e.playerId === p.id && e.positiveActionType === PositiveActionType.BLOCK_SHOT).length;
+                                                    const forced = matchData.events.filter(e => e.playerId === p.id && e.positiveActionType === PositiveActionType.FORCE_PENALTY).length;
+
+                                                    return (
+                                                        <tr key={p.id}>
+                                                            <td className="px-6 py-4 sticky left-0 bg-[#0f0f0f] z-10 border-r border-white/5">
+                                                                <span className="font-bold flex items-center gap-2">
+                                                                    <span className="text-slate-500 font-mono text-xs w-5 text-right">{p.number}</span>
+                                                                    {p.name}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-4 text-center font-black">{s?.positiveActions}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{steals}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{assists}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{blocks}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{forced}</td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500 italic">No hay acciones positivas registradas en este partido.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            {activeTab === 'TURNOVERS' && (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm min-w-[600px]">
+                                        <thead>
+                                            <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
+                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10">Jugador</th>
+                                                <th className="px-4 py-5 text-center">Total</th>
+                                                <th className="px-4 py-5 text-center text-orange-400">Pases</th>
+                                                <th className="px-4 py-5 text-center text-orange-400">Recepción</th>
+                                                <th className="px-4 py-5 text-center text-orange-400">Pasos/Dobles</th>
+                                                <th className="px-4 py-5 text-center text-orange-400">Otros</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-white/5">
+                                            {sortedPlayers.filter(p => (playerStatsMap.get(p.id)?.turnovers || 0) > 0).length > 0 ? (
+                                                sortedPlayers.filter(p => (playerStatsMap.get(p.id)?.turnovers || 0) > 0).map(p => {
+                                                    const s = playerStatsMap.get(p.id);
+                                                    const passBad = matchData.events.filter(e => e.playerId === p.id && e.turnoverType === TurnoverType.PASS).length;
+                                                    const reception = matchData.events.filter(e => e.playerId === p.id && e.turnoverType === TurnoverType.RECEPTION).length;
+                                                    const steps = matchData.events.filter(e => e.playerId === p.id && (e.turnoverType === TurnoverType.STEPS || e.turnoverType === TurnoverType.DOUBLE)).length;
+                                                    const others = (s?.turnovers || 0) - (passBad + reception + steps);
+
+                                                    return (
+                                                        <tr key={p.id}>
+                                                            <td className="px-6 py-4 sticky left-0 bg-[#0f0f0f] z-10 border-r border-white/5">
+                                                                <span className="font-bold flex items-center gap-2">
+                                                                    <span className="text-slate-500 font-mono text-xs w-5 text-right">{p.number}</span>
+                                                                    {p.name}
+                                                                </span>
+                                                            </td>
+                                                            <td className="px-4 py-4 text-center font-black">{s?.turnovers}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{passBad}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{reception}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{steps}</td>
+                                                            <td className="px-4 py-4 text-center text-slate-400 font-bold">{others}</td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={6} className="px-6 py-10 text-center text-slate-500 italic">No hay fallos registrados en este partido.</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
                             )}
 
@@ -435,16 +531,23 @@ export const PublicMatchViewer: React.FC = () => {
 
             {/* Mobile Tab Bar (Floating) */}
             <div className="fixed bottom-6 left-1/2 -translate-x-1/2 md:hidden z-50">
-                <div className="bg-[#0f0f0f]/90 backdrop-blur-xl border border-white/10 p-2 rounded-2xl flex items-center gap-1 shadow-2xl">
-                    <button onClick={() => setActiveTab('OVERVIEW')} className={`p-3 rounded-xl ${activeTab === 'OVERVIEW' ? 'bg-[#0df259] text-black' : 'text-slate-400'}`}>
-                        <Activity size={20} />
-                    </button>
-                    <button onClick={() => setActiveTab('SHOOTING')} className={`p-3 rounded-xl ${activeTab === 'SHOOTING' ? 'bg-[#0df259] text-black' : 'text-slate-400'}`}>
-                        <Target size={20} />
-                    </button>
-                    <button onClick={() => setActiveTab('GOALKEEPERS')} className={`p-3 rounded-xl ${activeTab === 'GOALKEEPERS' ? 'bg-[#0df259] text-black' : 'text-slate-400'}`}>
-                        <Users size={20} />
-                    </button>
+                <div className="bg-[#0f0f0f]/90 backdrop-blur-xl border border-white/10 p-1.5 rounded-2xl flex items-center gap-0.5 shadow-2xl">
+                    {[
+                        { id: 'OVERVIEW', icon: Activity },
+                        { id: 'SHOOTING', icon: Target },
+                        { id: 'POSITIVE', icon: Zap },
+                        { id: 'TURNOVERS', icon: BarChart3 },
+                        { id: 'GOALKEEPERS', icon: Users },
+                        { id: 'RIVAL', icon: ShieldAlert }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as WebTab)}
+                            className={`p-3 rounded-xl transition-all ${activeTab === tab.id ? 'bg-[#0df259] text-black scale-110 shadow-lg shadow-[#0df259]/20' : 'text-slate-500'}`}
+                        >
+                            <tab.icon size={18} />
+                        </button>
+                    ))}
                 </div>
             </div>
 

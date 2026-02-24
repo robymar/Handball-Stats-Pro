@@ -347,20 +347,20 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
         <div className="flex flex-col min-h-full bg-slate-900">
             {/* Filters */}
             <div className="p-4 border-b border-slate-800 flex flex-col sm:flex-row gap-2 shrink-0 items-stretch sm:items-center justify-between">
-                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1 sm:pb-0 scroll-smooth">
                     <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 shrink-0">
-                        <button onClick={() => setPeriodFilter('ALL')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded ${periodFilter === 'ALL' ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>Todo</button>
+                        <button onClick={() => setPeriodFilter('ALL')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${periodFilter === 'ALL' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>Todo</button>
                         {Array.from({ length: maxPeriod }).map((_, i) => (
-                            <button key={i} onClick={() => setPeriodFilter(i + 1)} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded ${periodFilter === i + 1 ? 'bg-slate-600 text-white' : 'text-slate-400 hover:text-white'}`}>P{i + 1}</button>
+                            <button key={i} onClick={() => setPeriodFilter(i + 1)} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${periodFilter === i + 1 ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>P{i + 1}</button>
                         ))}
                     </div>
-                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 items-center">
-                        <button onClick={() => setStatsTab('GENERAL')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'GENERAL' ? 'bg-handball-blue text-white' : 'text-slate-400 hover:text-white'}`}>General</button>
-                        <button onClick={() => setStatsTab('SHOOTING')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'SHOOTING' ? 'bg-handball-blue text-white' : 'text-slate-400 hover:text-white'}`}>Tiro</button>
-                        <button onClick={() => setStatsTab('PLACEMENT')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'PLACEMENT' ? 'bg-handball-blue text-white' : 'text-slate-400 hover:text-white'}`}>Portería</button>
-                        <button onClick={() => setStatsTab('POSITIVE')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'POSITIVE' ? 'bg-handball-blue text-white' : 'text-slate-400 hover:text-white'}`}>Aciertos</button>
-                        <button onClick={() => setStatsTab('TURNOVERS')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'TURNOVERS' ? 'bg-handball-blue text-white' : 'text-slate-400 hover:text-white'}`}>Fallos</button>
-                        <button onClick={() => setStatsTab('RIVAL')} className={`px-2 sm:px-3 py-1 text-xs font-bold rounded whitespace-nowrap ${statsTab === 'RIVAL' ? 'bg-red-900 text-white' : 'text-slate-400 hover:text-white'}`}>Rival</button>
+                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 items-center shrink-0">
+                        <button onClick={() => setStatsTab('GENERAL')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'GENERAL' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Resumen</button>
+                        <button onClick={() => setStatsTab('SHOOTING')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'SHOOTING' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Tiro</button>
+                        <button onClick={() => setStatsTab('PLACEMENT')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'PLACEMENT' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Portería</button>
+                        <button onClick={() => setStatsTab('POSITIVE')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'POSITIVE' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Aciertos</button>
+                        <button onClick={() => setStatsTab('TURNOVERS')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'TURNOVERS' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Fallos</button>
+                        <button onClick={() => setStatsTab('RIVAL')} className={`px-2.5 sm:px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'RIVAL' ? 'bg-red-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Rival</button>
                     </div>
                 </div>
                 {!readOnly && (
@@ -381,57 +381,57 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                 {statsTab === 'GENERAL' && (
                     <div className="space-y-4">
                         {/* Scoreboard Summary */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center relative overflow-hidden">
-                                <div className="text-xs text-slate-500 uppercase font-bold mb-1">Local</div>
-                                <div className="text-sm font-bold text-slate-300 truncate px-2 mb-1">{state.metadata.homeTeam}</div>
-                                <div className="text-4xl font-black text-white">{state.homeScore}</div>
+                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                            <div className="bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-700 text-center relative overflow-hidden">
+                                <div className="text-[10px] sm:text-xs text-slate-500 uppercase font-black mb-1">Local</div>
+                                <div className="text-xs sm:text-sm font-bold text-slate-300 truncate px-1 mb-1">{state.metadata.homeTeam}</div>
+                                <div className="text-3xl sm:text-4xl font-black text-white leading-none">{state.homeScore}</div>
                             </div>
-                            <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 text-center relative overflow-hidden">
-                                <div className="text-xs text-slate-500 uppercase font-bold mb-1">Visitante</div>
-                                <div className="text-sm font-bold text-slate-300 truncate px-2 mb-1">{state.metadata.awayTeam}</div>
-                                <div className="text-4xl font-black text-white">{state.awayScore}</div>
+                            <div className="bg-slate-800 p-3 sm:p-4 rounded-xl border border-slate-700 text-center relative overflow-hidden">
+                                <div className="text-[10px] sm:text-xs text-slate-500 uppercase font-black mb-1">Visitante</div>
+                                <div className="text-xs sm:text-sm font-bold text-slate-300 truncate px-1 mb-1">{state.metadata.awayTeam}</div>
+                                <div className="text-3xl sm:text-4xl font-black text-white leading-none">{state.awayScore}</div>
                             </div>
                         </div>
 
-
-
                         {/* Players Table */}
-                        <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                            <table className="w-full text-xs sm:text-sm">
-                                <thead className="bg-slate-900 text-slate-400 text-xs uppercase font-bold">
+                        <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-x-auto">
+                            <table className="w-full text-[11px] sm:text-sm min-w-[360px]">
+                                <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold">
                                     <tr>
-                                        <th className="px-1 py-2 sm:px-3 sm:py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador {sortConfig?.key.includes('PLAYER') && (sortConfig.key === 'PLAYER_NAME' ? '🔤' : '#️⃣')}</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('GOALS')}>Gol</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PERCENTAGE')}>%</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('POSITIVE')}>Pos</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Sanc</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TIME')}>Tiempo</th>
-                                        <th className="px-1 py-2 sm:px-2 sm:py-3 text-center text-purple-400 cursor-pointer hover:text-purple-300" onClick={() => handleHeaderClick('RATING')}>Val</th>
+                                        <th className="px-2 py-2.5 sm:px-3 sm:py-3 text-left cursor-pointer hover:text-white sticky left-0 bg-slate-900 z-10" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('GOALS')}>Gol</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PERCENTAGE')}>%</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('POSITIVE')}>Pos</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Sanc</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TIME')}>Reloj</th>
+                                        <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-purple-400 cursor-pointer hover:text-purple-300" onClick={() => handleHeaderClick('RATING')}>Val</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
                                     {getSortedPlayers(state.players.filter(p => p.position !== Position.STAFF), fieldPlayersStatsMap).map(p => {
                                         const s = fieldPlayersStatsMap.get(p.id) || { goals: 0, totalShots: 0, percentage: 0, turnovers: 0, positiveActions: 0, yellow: 0, twoMin: 0, red: 0, blue: 0 };
                                         return (
-                                            <tr key={p.id} className="hover:bg-slate-700/50 cursor-pointer" onClick={() => setSelectedPlayerId(p.id)}>
-                                                <td className="px-2 py-2 sm:px-3 sm:py-2">
-                                                    <div className="flex items-center gap-1 sm:gap-2">
+                                            <tr key={p.id} className="hover:bg-slate-700/50 cursor-pointer text-white" onClick={() => setSelectedPlayerId(p.id)}>
+                                                <td className="px-2 py-2 sm:px-3 sticky left-0 bg-slate-800 z-10 border-r border-slate-700/30">
+                                                    <div className="flex items-center gap-1.5">
                                                         <span className="font-mono font-bold text-slate-500 w-4 sm:w-5 text-right">{p.number}</span>
-                                                        <span className="truncate max-w-[80px] sm:max-w-[100px] font-medium text-handball-blue hover:text-white transition-colors">{p.name}</span>
+                                                        <span className="truncate max-w-[70px] sm:max-w-[100px] font-bold text-handball-blue group-hover:text-white">{p.name.split(' ').pop()}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-2 py-2 text-center font-bold text-white">{s.goals}/{s.totalShots}</td>
-                                                <td className="px-2 py-2 text-center text-slate-400 text-xs">{s.percentage}%</td>
-                                                <td className="px-2 py-2 text-center text-orange-300">{s.turnovers}</td>
-                                                <td className="px-2 py-2 text-center text-green-300">{s.positiveActions}</td>
-                                                <td className="px-2 py-2 text-center text-xs">
-                                                    {s.yellow > 0 && <span className="text-yellow-500 mr-1">{s.yellow}A</span>}
-                                                    {s.twoMin > 0 && <span className="text-white mr-1">{s.twoMin}'</span>}
-                                                    {s.red > 0 && <span className="text-red-500">R</span>}
+                                                <td className="px-1 py-2 text-center font-black">{s.goals}/{s.totalShots}</td>
+                                                <td className="px-1 py-2 text-center text-slate-400 font-medium">{s.percentage}%</td>
+                                                <td className="px-1 py-2 text-center text-orange-300 font-bold">{s.turnovers}</td>
+                                                <td className="px-1 py-2 text-center text-green-300 font-bold">{s.positiveActions}</td>
+                                                <td className="px-1 py-2 text-center font-bold">
+                                                    <div className="flex flex-col items-center gap-0.5 sm:flex-row sm:justify-center sm:gap-1">
+                                                        {s.yellow > 0 && <span className="w-3 h-4 bg-yellow-400 rounded-sm text-[8px] flex items-center justify-center text-black">A</span>}
+                                                        {s.twoMin > 0 && <span className="px-1 bg-white text-black rounded-sm text-[8px]">{s.twoMin * 2}'</span>}
+                                                        {(s.red > 0 || s.blue > 0) && <span className={`w-3 h-4 ${s.blue > 0 ? 'bg-blue-600' : 'bg-red-600'} rounded-sm text-[8px] flex items-center justify-center text-white`}>D</span>}
+                                                    </div>
                                                 </td>
-                                                <td className="px-2 py-2 text-center text-xs text-slate-400">
+                                                <td className="px-1 py-2 text-center text-slate-400 font-mono">
                                                     {(() => {
                                                         const pt = getPlayingTimeForPeriod(p, periodFilter);
                                                         const m = Math.floor(pt / 60);
@@ -439,9 +439,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                                         return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
                                                     })()}
                                                 </td>
-                                                <td className="px-2 py-2 text-center font-bold text-purple-400">
+                                                <td className="px-1 py-2 text-center font-black text-purple-400">
                                                     {s.rating}
-                                                    {s.rating === maxRating && s.rating > 0 && <span className="ml-1">🏆</span>}
+                                                    {s.rating === maxRating && s.rating > 0 && <span className="ml-0.5 sm:ml-1">🏆</span>}
                                                 </td>
                                             </tr>
                                         );
@@ -581,17 +581,17 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                 )}
 
                 {statsTab === 'POSITIVE' && (
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-900 text-slate-400 text-xs uppercase font-bold">
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-x-auto">
+                        <table className="w-full text-[11px] sm:text-sm min-w-[500px]">
+                            <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold">
                                 <tr>
-                                    <th className="px-3 py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-2 py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('POSITIVE')}>Total</th>
-                                    <th className="px-2 py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('STEALS')}>Recup</th>
-                                    <th className="px-2 py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('ASSISTS')}>Asist</th>
-                                    <th className="px-2 py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('PENALTIES')}>7m/2'</th>
-                                    <th className="px-2 py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('GOOD_DEF')}>Buena Df</th>
-                                    <th className="px-2 py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('BLOCKS')}>Blocaje</th>
+                                    <th className="px-2 py-2.5 sm:px-3 sm:py-3 text-left sticky left-0 bg-slate-900 z-10" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center" onClick={() => handleHeaderClick('POSITIVE')}>Total</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400" onClick={() => handleHeaderClick('STEALS')}>Recup</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400" onClick={() => handleHeaderClick('ASSISTS')}>Asist</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400" onClick={() => handleHeaderClick('PENALTIES')}>7m/2'</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400" onClick={() => handleHeaderClick('GOOD_DEF')}>Buena Df</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-green-400" onClick={() => handleHeaderClick('BLOCKS')}>Blocaje</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -602,18 +602,18 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
 
                                     return (
                                         <tr key={p.id} className="hover:bg-slate-700/50">
-                                            <td className="px-3 py-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono font-bold text-slate-500 w-5 text-right">{p.number}</span>
-                                                    <span className="truncate font-medium text-white">{p.name.split(' ')[0]}</span>
+                                            <td className="px-2 py-2 sm:px-3 sticky left-0 bg-slate-800 z-10 border-r border-slate-700/30">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono font-bold text-slate-500 w-4 sm:w-5 text-right">{p.number}</span>
+                                                    <span className="truncate max-w-[80px] sm:max-w-[120px] font-bold text-white">{p.name.split(' ').pop()}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-2 text-center font-bold text-white">{s.positiveActions}</td>
-                                            <td className="px-2 py-2 text-center text-slate-400">{steals}</td>
-                                            <td className="px-2 py-2 text-center text-slate-400">{assists}</td>
-                                            <td className="px-2 py-2 text-center text-slate-400">{penalties}</td>
-                                            <td className="px-2 py-2 text-center text-slate-400">{goodDef}</td>
-                                            <td className="px-2 py-2 text-center text-slate-400">{blocks}</td>
+                                            <td className="px-1 py-2 text-center font-black text-white">{s.positiveActions}</td>
+                                            <td className="px-1 py-2 text-center text-slate-400">{steals}</td>
+                                            <td className="px-1 py-2 text-center text-slate-400">{assists}</td>
+                                            <td className="px-1 py-2 text-center text-slate-400">{penalties}</td>
+                                            <td className="px-1 py-2 text-center text-slate-400">{goodDef}</td>
+                                            <td className="px-1 py-2 text-center text-slate-400">{blocks}</td>
                                         </tr>
                                     );
                                 })}
@@ -626,18 +626,18 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                 )}
 
                 {statsTab === 'TURNOVERS' && (
-                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-slate-900 text-slate-400 text-xs uppercase font-bold">
+                    <div className="bg-slate-800 rounded-xl border border-slate-700 overflow-x-auto">
+                        <table className="w-full text-[11px] sm:text-sm min-w-[550px]">
+                            <thead className="bg-slate-900 text-slate-400 text-[10px] uppercase font-bold">
                                 <tr>
-                                    <th className="px-3 py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-2 py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TURNOVERS')}>Total</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('PASS')}>Pase</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('RECEPTION')}>Recep</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('STEPS')}>Pasos</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('DOUBLE')}>Dobles</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('LINE')}>Pisar</th>
-                                    <th className="px-2 py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('OFF_FOUL')}>F. Ataque</th>
+                                    <th className="px-2 py-2.5 sm:px-3 sm:py-3 text-left sticky left-0 bg-slate-900 z-10" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center" onClick={() => handleHeaderClick('TURNOVERS')}>Total</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('PASS')}>Pase</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('RECEPTION')}>Recep</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('STEPS')}>Pasos</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('DOUBLE')}>Dobles</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('LINE')}>Pisar</th>
+                                    <th className="px-1 py-2.5 sm:px-2 sm:py-3 text-center text-orange-400" onClick={() => handleHeaderClick('OFF_FOUL')}>F. Ataque</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -648,19 +648,19 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
 
                                     return (
                                         <tr key={p.id} className="hover:bg-slate-700/50">
-                                            <td className="px-3 py-2">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="font-mono font-bold text-slate-500 w-5 text-right">{p.number}</span>
-                                                    <span className="truncate font-medium text-white">{p.name.split(' ')[0]}</span>
+                                            <td className="px-2 py-2 sm:px-3 sticky left-0 bg-slate-800 z-10 border-r border-slate-700/30">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="font-mono font-bold text-slate-500 w-4 sm:w-5 text-right">{p.number}</span>
+                                                    <span className="truncate max-w-[80px] sm:max-w-[120px] font-bold text-white">{p.name.split(' ').pop()}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-2 py-2 text-center font-bold text-white">{s.turnovers}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{passBad}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{reception}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{steps}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{double}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{line}</td>
-                                            <td className="px-2 py-2 text-center text-orange-300">{offFoul}</td>
+                                            <td className="px-1 py-2 text-center font-black text-white">{s.turnovers}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{passBad}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{reception}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{steps}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{double}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{line}</td>
+                                            <td className="px-1 py-2 text-center text-orange-300">{offFoul}</td>
                                         </tr>
                                     );
                                 })}

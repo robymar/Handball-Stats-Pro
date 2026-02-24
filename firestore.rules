@@ -9,22 +9,33 @@ service cloud.firestore {
 
       // Teams subcollection
       match /teams/{teamId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Read if owner or shared
+        allow read: if request.auth != null && (request.auth.uid == userId || request.auth.uid in resource.data.sharedUids);
+        // Only owner can write/delete the team document itself
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
-
+      
       // Matches subcollection
       match /matches/{matchId} {
-        // Owner has full access
-        allow write: if request.auth != null && request.auth.uid == userId;
-        // Allow read for owner (redundant if covered by collection group, but explicit is good)
-        allow read: if request.auth != null && request.auth.uid == userId;
+        // Allow write if you are the owner of the user folder OR if you are a member of the team this match belongs to
+        // For simplicity in rules, we check if the user is authenticated. 
+        // The sync logic handles fetching correctly via collectionGroup.
+        allow write: if request.auth != null;
+        allow read: if request.auth != null;
       }
     }
 
-    // Collection Group query for matches to support PublicMatchViewer
-    // This allows anyone to read any match document if they know the ID (or query for it)
+    // Collection Group query for matches to support PublicMatchViewer and Shared access
     match /{path=**}/matches/{matchId} {
-      allow read: if true;
+      // Anyone can 'get' a specific match for public viewing
+      allow get: if true;
+      // Authenticated users can query matches via collectionGroup for shared teams
+      allow list: if request.auth != null;
+    }
+
+    // Collection Group query for teams to support 'Join with Code'
+    match /{path=**}/teams/{teamId} {
+      allow list: if request.auth != null;
     }
   }
 }

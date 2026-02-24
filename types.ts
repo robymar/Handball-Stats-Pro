@@ -37,6 +37,9 @@ export interface Team {
   logo?: string;
   players: Player[]; // Plantilla propia del equipo
   createdAt: number;
+  shareCode?: string; // Code for delegates to join
+  ownerUid?: string;  // UID of the head coach who created it
+  sharedUids?: string[]; // UIDs of delegates who have access
 }
 
 export enum ShotZone {
