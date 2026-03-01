@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { getMatchListFromFirebase, getAllMatchesFullFromFirebase, MatchSummary, getActiveTeam, getTeams, syncTeamsDown } from '../services/storageService.ts';
 import { MatchState } from '../types.ts';
 import { GlobalStatsView } from './GlobalStatsView.tsx';
-import { Loader2, ArrowLeft, Calendar, Trophy, BarChart3, Cloud, Search, ChevronRight, Share2, Filter } from 'lucide-react';
+import { Loader2, ArrowLeft, Calendar, Trophy, BarChart3, Cloud, Search, ChevronRight, Share2, Filter, LogOut } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/firebase.ts';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -54,9 +54,15 @@ export const CloudMatchList: React.FC = () => {
         setLoading(false);
     };
 
-    const teamList = Array.from(new Set(userTeams.map(t => JSON.stringify({ name: t.name, category: t.category || '' }))))
-        .map(s => JSON.parse(s))
-        .sort((a, b) => a.name.localeCompare(b.name));
+    const filterTeams = Array.from(
+        new Set(matches.map(m => m.ownerTeamId).filter(Boolean))
+    ).map(id => {
+        const localTeam = userTeams.find(t => t.id === id);
+        if (localTeam) return { id, name: localTeam.name, category: localTeam.category };
+        const teamMatches = matches.filter(m => m.ownerTeamId === id);
+        const nameGuess = teamMatches.length > 0 ? teamMatches[0].homeTeam : 'Desconocido';
+        return { id, name: nameGuess, category: '' };
+    }).sort((a, b) => a.name.localeCompare(b.name));
 
     const handleOpenGlobalStats = async () => {
         if (!user) return;
@@ -111,9 +117,16 @@ export const CloudMatchList: React.FC = () => {
                 <p className="text-slate-500 mb-8 max-w-sm font-medium leading-relaxed">Inicia sesión para acceder a tu biblioteca personal de partidos y estadísticas avanzadas.</p>
                 <button
                     onClick={() => navigate('/login')}
-                    className="px-8 py-4 bg-[#0df259] text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(13,242,89,0.3)]"
+                    className="px-8 py-4 bg-[#0df259] text-black font-black uppercase tracking-widest rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(13,242,89,0.3)] mb-4"
                 >
                     Identificarse
+                </button>
+                <button
+                    onClick={() => navigate('/')}
+                    className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors"
+                >
+                    <ArrowLeft size={16} />
+                    <span className="text-sm font-bold tracking-widest uppercase">Volver a la App</span>
                 </button>
             </div>
         );
@@ -155,32 +168,69 @@ export const CloudMatchList: React.FC = () => {
         <div className="min-h-screen bg-[#050505] flex flex-col">
             {/* Header section */}
             <div className="bg-[#050505]/80 backdrop-blur-xl border-b border-white/5 sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button onClick={() => navigate('/')} className="p-2 text-slate-500 hover:text-white transition-colors">
-                            <ArrowLeft size={24} />
-                        </button>
-                        <div>
-                            <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
-                                <Cloud className="text-[#0df259]" size={20} /> MIS PARTIDOS
-                            </h1>
-                            <p className="text-[10px] font-black text-[#0df259]/60 uppercase tracking-widest leading-none">BIBLIOTECA EN LA NUBE</p>
+                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                            <button onClick={() => navigate('/')} className="p-2 text-slate-500 hover:text-white transition-colors">
+                                <ArrowLeft size={24} />
+                            </button>
+                            <div>
+                                <h1 className="text-xl font-black tracking-tight flex items-center gap-2">
+                                    <Cloud className="text-[#0df259]" size={20} /> MIS PARTIDOS
+                                </h1>
+                                <p className="text-[10px] font-black text-[#0df259]/60 uppercase tracking-widest leading-none">BIBLIOTECA EN LA NUBE</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            {selectedTeam !== 'ALL' && filteredMatches.length > 0 && (
+                                <button
+                                    onClick={handleOpenGlobalStats}
+                                    className="bg-white/5 border border-white/10 hover:border-[#0df259]/50 hover:bg-[#0df259]/5 px-4 py-2 rounded-xl flex items-center gap-2 transition-all group shadow-lg"
+                                >
+                                    <BarChart3 size={16} className="text-[#0df259]" />
+                                    <span className="text-xs font-black uppercase text-white tracking-widest hidden md:inline">Estadísticas {filterTeams.find(t => t.id === selectedTeam)?.name.substring(0, 10)}</span>
+                                    <span className="text-[10px] font-black uppercase text-white tracking-widest md:hidden">Stats</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={async () => {
+                                    await auth.signOut();
+                                    navigate('/login');
+                                }}
+                                className="bg-red-900/20 border border-red-500/50 hover:bg-red-500/20 hover:text-white px-3 py-2 rounded-xl flex items-center gap-2 transition-all text-red-500 group shadow-lg"
+                                title="Cerrar Sesión"
+                            >
+                                <LogOut size={16} />
+                                <span className="text-xs font-black uppercase text-white tracking-widest hidden md:inline">Salir</span>
+                            </button>
                         </div>
                     </div>
-                    {matches.length > 0 && (
-                        <button
-                            onClick={handleOpenGlobalStats}
-                            className="bg-white/5 border border-white/10 hover:border-[#0df259]/50 hover:bg-[#0df259]/5 px-4 py-2 rounded-xl flex items-center gap-2 transition-all group"
-                        >
-                            <BarChart3 size={16} className="text-[#0df259]" />
-                            <span className="text-xs font-black uppercase text-white tracking-widest">Global Stats</span>
-                        </button>
+
+                    {/* Team Filter Buttons */}
+                    {filterTeams.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                            <button
+                                onClick={() => { setSelectedTeam('ALL'); setSearchTerm(''); }}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' && !searchTerm ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                            >
+                                Todos
+                            </button>
+                            {filterTeams.map((t: any) => (
+                                <button
+                                    key={t.id}
+                                    onClick={() => setSelectedTeam(t.id)}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === t.id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                >
+                                    {t.name} {t.category ? `(${t.category})` : ''}
+                                </button>
+                            ))}
+                        </div>
                     )}
                 </div>
             </div>
 
             {/* Sub-header/Filters */}
-            <div className="max-w-7xl mx-auto w-full px-4 py-6 space-y-4">
+            <div className="max-w-7xl mx-auto w-full px-4 py-6">
                 <div className="relative group">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-[#0df259] transition-colors" size={18} />
                     <input
@@ -191,28 +241,6 @@ export const CloudMatchList: React.FC = () => {
                         className="w-full bg-white/5 border border-white/5 focus:border-[#0df259]/30 rounded-2xl py-4 pl-12 pr-4 text-sm font-medium outline-none transition-all placeholder:text-slate-700"
                     />
                 </div>
-
-                {userTeams.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-                        <button
-                            onClick={() => { setSelectedTeam('ALL'); setSearchTerm(''); }}
-                            className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' && !searchTerm ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
-                        >
-                            Todos
-                        </button>
-                        {userTeams
-                            .sort((a, b) => a.name.localeCompare(b.name))
-                            .map((t: any) => (
-                                <button
-                                    key={t.id}
-                                    onClick={() => setSelectedTeam(t.id)}
-                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === t.id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
-                                >
-                                    {t.name} {t.category ? `(${t.category})` : ''}
-                                </button>
-                            ))}
-                    </div>
-                )}
             </div>
 
             {/* List */}

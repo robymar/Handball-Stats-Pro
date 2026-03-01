@@ -8,6 +8,8 @@ import { getPlayingTimeForPeriod } from '../utils/matchUtils.ts';
 import { GoalStatsSVG } from './GoalStatsSVG.tsx';
 import { PlayerDetailView } from './PlayerDetailView.tsx';
 import { Loader2, Trophy, Target, ShieldAlert, TrendingUp, Clock, Activity, ChevronDown, ArrowLeft, Share2, Users, BarChart3, Zap, Info } from 'lucide-react';
+import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
 
 // ─── Stat calculation helpers ───
 
@@ -71,6 +73,14 @@ export const PublicMatchViewer: React.FC = () => {
     const [activeTab, setActiveTab] = useState<WebTab>('OVERVIEW');
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'rating', direction: 'desc' });
+
+    const handleHeaderClick = (key: string) => {
+        setSortConfig(current => ({
+            key,
+            direction: current.key === key && current.direction === 'desc' ? 'asc' : 'desc'
+        }));
+    };
 
     useEffect(() => {
         if (!id) return;
@@ -95,9 +105,27 @@ export const PublicMatchViewer: React.FC = () => {
     }, [matchData]);
 
     const handleShare = async () => {
-        await navigator.clipboard.writeText(window.location.href);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        const webUrl = `https://handball-stats-pro-52c1c.web.app/match/${id}`;
+        try {
+            if (Capacitor.isNativePlatform()) {
+                await Share.share({
+                    title: 'Estadísticas del Partido',
+                    text: `Handball Stats Pro - ${matchData?.metadata.homeTeam} vs ${matchData?.metadata.awayTeam}`,
+                    url: webUrl,
+                    dialogTitle: 'Compartir Partido'
+                });
+            } else {
+                await navigator.clipboard.writeText(webUrl);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            }
+        } catch (err) {
+            console.error("Error sharing", err);
+            // Fallback
+            await navigator.clipboard.writeText(webUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
     };
 
     if (loading) return (
@@ -118,7 +146,40 @@ export const PublicMatchViewer: React.FC = () => {
         </div>
     );
 
-    const sortedPlayers = [...matchData.players.filter(p => !p.position.includes('STAFF'))].sort((a, b) => (playerStatsMap.get(b.id)?.rating || 0) - (playerStatsMap.get(a.id)?.rating || 0));
+    const sortedPlayers = [...matchData.players.filter(p => !p.position.includes('STAFF'))].sort((a, b) => {
+        const sA = playerStatsMap.get(a.id);
+        const sB = playerStatsMap.get(b.id);
+        let vA: any = 0, vB: any = 0;
+        const k = sortConfig.key;
+
+        if (k === 'number' || k === 'name') {
+            vA = a[k]; vB = b[k];
+        } else if (sA && sB) {
+            if (['percentage', 'goals', 'rating', 'assists', 'turnovers', 'positiveActions', 'steals', 'blocks'].includes(k)) {
+                vA = (sA as any)[k] || 0; vB = (sB as any)[k] || 0;
+            } else if (k === 'forced') {
+                vA = matchData.events.filter(e => e.playerId === a.id && e.positiveActionType === PositiveActionType.FORCE_PENALTY).length;
+                vB = matchData.events.filter(e => e.playerId === b.id && e.positiveActionType === PositiveActionType.FORCE_PENALTY).length;
+            } else if (k === 'passBad') {
+                vA = matchData.events.filter(e => e.playerId === a.id && e.turnoverType === TurnoverType.PASS).length;
+                vB = matchData.events.filter(e => e.playerId === b.id && e.turnoverType === TurnoverType.PASS).length;
+            } else if (k === 'reception') {
+                vA = matchData.events.filter(e => e.playerId === a.id && e.turnoverType === TurnoverType.RECEPTION).length;
+                vB = matchData.events.filter(e => e.playerId === b.id && e.turnoverType === TurnoverType.RECEPTION).length;
+            } else if (k === 'steps') {
+                vA = matchData.events.filter(e => e.playerId === a.id && (e.turnoverType === TurnoverType.STEPS || e.turnoverType === TurnoverType.DOUBLE)).length;
+                vB = matchData.events.filter(e => e.playerId === b.id && (e.turnoverType === TurnoverType.STEPS || e.turnoverType === TurnoverType.DOUBLE)).length;
+            } else if (k === 'othersTurnovers') {
+                vA = sA.turnovers - matchData.events.filter(e => e.playerId === a.id && [TurnoverType.PASS, TurnoverType.RECEPTION, TurnoverType.STEPS, TurnoverType.DOUBLE].includes(e.turnoverType as TurnoverType)).length;
+                vB = sB.turnovers - matchData.events.filter(e => e.playerId === b.id && [TurnoverType.PASS, TurnoverType.RECEPTION, TurnoverType.STEPS, TurnoverType.DOUBLE].includes(e.turnoverType as TurnoverType)).length;
+            }
+        }
+
+        if (typeof vA === 'string' && typeof vB === 'string') {
+            return sortConfig.direction === 'asc' ? vA.localeCompare(vB) : vB.localeCompare(vA);
+        }
+        return sortConfig.direction === 'asc' ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
+    });
     const mvp = sortedPlayers[0];
     const mvpStats = playerStatsMap.get(mvp?.id);
 
@@ -276,12 +337,12 @@ export const PublicMatchViewer: React.FC = () => {
                                     <table className="w-full text-sm">
                                         <thead>
                                             <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                                                <th className="px-6 py-5 text-left font-bold">Jugador</th>
-                                                <th className="px-4 py-5 text-center font-bold">G / T</th>
-                                                <th className="px-4 py-5 text-center font-bold">%</th>
-                                                <th className="px-4 py-5 text-center font-bold">Asist</th>
-                                                <th className="px-4 py-5 text-center font-bold text-orange-400">Pér</th>
-                                                <th className="px-4 py-5 text-center font-bold">Val</th>
+                                                <th className="px-6 py-5 text-left font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('number')}>Jugador</th>
+                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('goals')}>G / T</th>
+                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('percentage')}>%</th>
+                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('assists')}>Asist</th>
+                                                <th className="px-4 py-5 text-center font-bold text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('turnovers')}>Pér</th>
+                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('rating')}>Val</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
@@ -355,12 +416,12 @@ export const PublicMatchViewer: React.FC = () => {
                                     <table className="w-full text-sm min-w-[600px]">
                                         <thead>
                                             <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10">Jugador</th>
-                                                <th className="px-4 py-5 text-center">Total</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]">Recup</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]">Asist</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]">Blocajes</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]">Penaltis/2'</th>
+                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10 cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('number')}>Jugador</th>
+                                                <th className="px-4 py-5 text-center cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('positiveActions')}>Total</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259] cursor-pointer hover:text-emerald-300 transition-colors" onClick={() => handleHeaderClick('steals')}>Recup</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259] cursor-pointer hover:text-emerald-300 transition-colors" onClick={() => handleHeaderClick('assists')}>Asist</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259] cursor-pointer hover:text-emerald-300 transition-colors" onClick={() => handleHeaderClick('blocks')}>Blocajes</th>
+                                                <th className="px-4 py-5 text-center text-[#0df259] cursor-pointer hover:text-emerald-300 transition-colors" onClick={() => handleHeaderClick('forced')}>Penaltis/2'</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
@@ -403,12 +464,12 @@ export const PublicMatchViewer: React.FC = () => {
                                     <table className="w-full text-sm min-w-[600px]">
                                         <thead>
                                             <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10">Jugador</th>
-                                                <th className="px-4 py-5 text-center">Total</th>
-                                                <th className="px-4 py-5 text-center text-orange-400">Pases</th>
-                                                <th className="px-4 py-5 text-center text-orange-400">Recepción</th>
-                                                <th className="px-4 py-5 text-center text-orange-400">Pasos/Dobles</th>
-                                                <th className="px-4 py-5 text-center text-orange-400">Otros</th>
+                                                <th className="px-6 py-5 text-left sticky left-0 bg-[#0f0f0f] z-10 cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('number')}>Jugador</th>
+                                                <th className="px-4 py-5 text-center cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('turnovers')}>Total</th>
+                                                <th className="px-4 py-5 text-center text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('passBad')}>Pases</th>
+                                                <th className="px-4 py-5 text-center text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('reception')}>Recepción</th>
+                                                <th className="px-4 py-5 text-center text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('steps')}>Pasos/Dobles</th>
+                                                <th className="px-4 py-5 text-center text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('othersTurnovers')}>Otros</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">

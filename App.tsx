@@ -16,7 +16,7 @@ import { auth } from './services/firebase.ts';
 import { applyActionCode } from 'firebase/auth';
 import { LoginView } from './components/LoginView.tsx';
 import { GlobalStatsView } from './components/GlobalStatsView.tsx';
-import { saveMatch, loadMatch, getMatchHistory, deleteMatch, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam, syncTeamsDown, syncMatchesDown, setActiveTeam, joinTeamWithCode, generateTeamShareCode } from './services/storageService.ts';
+import { saveMatch, loadMatch, getMatchHistory, deleteMatch, clearLocalData, MatchSummary, importMatchState, getTeams, saveTeam, deleteTeam, syncTeamsDown, syncMatchesDown, setActiveTeam, joinTeamWithCode, generateTeamShareCode } from './services/storageService.ts';
 import { Capacitor } from '@capacitor/core';
 import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { StatsView } from './components/StatsView.tsx';
@@ -118,10 +118,10 @@ const updatePlayingTime = (players: Player[], delta: number, currentPeriod: numb
     return players.map(p => {
         if (!p.active) return p;
         const currentPeriodStats = p.playingTimeByPeriod || {};
-        const periodTime = (currentPeriodStats[currentPeriod] || 0) + delta;
+        const periodTime = Math.max(0, (currentPeriodStats[currentPeriod] || 0) + delta);
         return {
             ...p,
-            playingTime: (p.playingTime || 0) + delta,
+            playingTime: Math.max(0, (p.playingTime || 0) + delta),
             playingTimeByPeriod: {
                 ...currentPeriodStats,
                 [currentPeriod]: periodTime
@@ -308,9 +308,11 @@ interface TeamSelectViewProps {
     onDeleteTeam: (id: string) => void;
     onUpdateTeam?: (team: Team) => void;
     onViewCloudMatches?: () => void;
+    onSyncClick?: () => void;
 }
 const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
-    const { teams, onSelectTeam, onCreateTeam, onDeleteTeam, onUpdateTeam, onViewCloudMatches } = props;
+    const navigate = useNavigate();
+    const { teams, onSelectTeam, onCreateTeam, onDeleteTeam, onUpdateTeam, onViewCloudMatches, onSyncClick } = props;
     const [isCreating, setIsCreating] = useState(false);
     const [newName, setNewName] = useState('');
     const [newCategory, setNewCategory] = useState('');
@@ -493,8 +495,21 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
     };
 
     return (
-        <div className="app-container flex flex-col items-center justify-center p-6 bg-slate-900 overflow-y-auto">
-            <div className="w-full max-w-2xl space-y-8">
+        <div className="app-container flex flex-col items-center justify-center p-6 bg-slate-900 overflow-y-auto relative">
+            {/* Botón de Logout arriba a la derecha */}
+            <button
+                onClick={async () => {
+                    clearLocalData();
+                    await auth.signOut();
+                    navigate('/login');
+                }}
+                className="absolute top-4 right-4 flex items-center gap-2 px-4 py-2 bg-slate-800 text-slate-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/50 border border-transparent rounded-full transition-all group"
+            >
+                <LogOut size={16} className="group-hover:text-red-400 transition-colors" />
+                <span className="text-xs font-bold uppercase tracking-widest hidden sm:inline">Cerrar Sesión</span>
+            </button>
+
+            <div className="w-full max-w-2xl space-y-8 mt-10">
                 <div className="text-center space-y-2">
                     <h1 className="text-4xl font-black text-white italic tracking-tighter">HANDBALL<span className="text-handball-blue">STATS</span> PRO</h1>
                     <p className="text-slate-400">Selecciona tu Equipo para comenzar</p>
@@ -678,13 +693,20 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                             </div>
                         </div>
 
-                        <div className="mt-8 flex justify-center">
+                        <div className="mt-8 flex flex-col items-center gap-4">
                             <button
                                 onClick={() => onViewCloudMatches && onViewCloudMatches()}
-                                className="flex items-center gap-2 px-6 py-3 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-200 rounded-xl transition-colors border border-indigo-500/30"
+                                className="flex items-center justify-center gap-2 w-full max-w-sm px-6 py-3 bg-indigo-900/50 hover:bg-indigo-800 text-indigo-200 rounded-xl transition-colors border border-indigo-500/30"
                             >
                                 <Cloud size={20} />
                                 <span className="font-bold">Ver Mis Partidos en Nube (Web)</span>
+                            </button>
+                            <button
+                                onClick={() => onSyncClick && onSyncClick()}
+                                className="flex items-center justify-center gap-2 w-full max-w-sm px-6 py-3 bg-emerald-900/50 hover:bg-emerald-800 text-emerald-200 rounded-xl transition-colors border border-emerald-500/30"
+                            >
+                                <RefreshCw size={20} />
+                                <span className="font-bold">Sincronizar Nube ↔ Local</span>
                             </button>
                         </div>
                     </>
@@ -1159,14 +1181,12 @@ const InfoView: React.FC<InfoViewProps> = ({
                     <h3 className="text-lg font-bold text-slate-400 uppercase mb-4 flex items-center gap-2">
                         Historial ({matches.length})
                         <div className="flex gap-2">
-                            {!getActiveTeam() && (
-                                <button
-                                    onClick={onToggleShowAll}
-                                    className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition-colors border ${showAllMatches ? 'bg-handball-blue text-white border-handball-blue' : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'}`}
-                                >
-                                    {showAllMatches ? 'Viendo Todos' : 'Ver Todos'}
-                                </button>
-                            )}
+                            <button
+                                onClick={onToggleShowAll}
+                                className={`px-3 py-1 rounded-lg text-xs font-bold uppercase transition-colors border ${showAllMatches ? 'bg-handball-blue text-white border-handball-blue' : 'bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500'}`}
+                            >
+                                {showAllMatches ? 'Viendo Todos' : 'Ver Todos'}
+                            </button>
                             <button onClick={onRefresh} className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors" title="Actualizar lista">
                                 <RefreshCw size={20} />
                             </button>
@@ -1260,6 +1280,7 @@ function MainDashboard() {
     const [mode, setMode] = useState<InputMode>(InputMode.IDLE);
     const [pendingEvent, setPendingEvent] = useState<Partial<MatchEvent>>({});
     const [view, setView] = useState<ViewType>('TEAM_SELECT');
+    const [loginOrigin, setLoginOrigin] = useState<ViewType>('TEAM_SELECT');
 
     const [matchHistory, setMatchHistory] = useState<MatchSummary[]>([]);
 
@@ -2950,7 +2971,7 @@ function MainDashboard() {
             lastTickRef.current = Date.now();
             interval = window.setInterval(() => {
                 const now = Date.now();
-                const delta = Math.floor((now - lastTickRef.current) / 1000);
+                const delta = Math.min(2, Math.floor((now - lastTickRef.current) / 1000));
                 if (delta >= 1) {
                     setState(s => {
                         if (s.isPaused) return s;
@@ -2979,12 +3000,12 @@ function MainDashboard() {
                         // We check pause AFTER updating players
                         const shouldPause = isPeriodFinished;
 
-                        const updatedPlayers = updatePlayingTime(s.players, delta, s.currentPeriod);
+                        // CRITICAL FIX v1.3.4: Use effective delta to prevent adding playing time beyond the period clock limit
+                        // This happens if delta > time remaining in period (e.g. app stayed in background)
+                        const effectiveDelta = Math.abs(newTime - s.gameTime);
 
-
-
-
-                        const updatedOpponentPlayers = updatePlayingTime(s.opponentPlayers || [], delta, s.currentPeriod);
+                        const updatedPlayers = updatePlayingTime(s.players, effectiveDelta, s.currentPeriod);
+                        const updatedOpponentPlayers = updatePlayingTime(s.opponentPlayers || [], effectiveDelta, s.currentPeriod);
 
                         // Check for expired sanctions
                         const activeSanctionEvents = s.events.filter(e => e.type === 'SANCTION' && e.sanctionDuration && e.sanctionDuration > 0);
@@ -3226,6 +3247,95 @@ function MainDashboard() {
                 newState.players = newState.players.map(p => p.id === lastEvent.sacrificedPlayerId ? { ...p, active: true } : p);
             }
             return recalculateMatchState(newState);
+        });
+    };
+
+    const handleRecalculatePlayingTimes = () => {
+        if (!window.confirm('⚡ ¿Recalcular los tiempos de juego a partir de los cambios registrados?\n\nSe borrarán los tiempos actuales y se reconstruirán desde los eventos de sustitución.\n\nNota: Los jugadores sin eventos ni cambios registrados quedarán a 0.')) return;
+
+        setState(s => {
+            const periodSecs = s.timerSettings.durationMinutes * 60;
+            const direction = s.timerSettings.direction;
+            const numPeriods = s.currentPeriod;
+
+            // Normalize a game-time value to "elapsed seconds within the period"
+            const toElapsed = (ts: number) => direction === 'UP' ? ts : Math.max(0, periodSecs - ts);
+
+            // Get all HOME substitution events, sorted by period then elapsed time
+            const subEvents = s.events
+                .filter(e => e.type === 'SUBSTITUTION' && !e.isOpponent)
+                .map(e => ({ ...e, elapsed: toElapsed(e.timestamp || 0) }))
+                .sort((a, b) => ((a.period || 1) - (b.period || 1)) || a.elapsed - b.elapsed);
+
+            // Track accumulated playing time (in seconds) per player
+            const accumulated: Record<string, number> = {};
+            const accByPeriod: Record<string, Record<number, number>> = {};
+            s.players.forEach(p => { accumulated[p.id] = 0; accByPeriod[p.id] = {}; });
+
+            // Players who are NOT field players — skip them
+            const isFieldPlayer = (id: string) => {
+                const p = s.players.find(x => x.id === id);
+                return p && p.position !== Position.STAFF && p.position !== Position.COACH;
+            };
+
+            let onField = new Set<string>();
+
+            for (let period = 1; period <= numPeriods; period++) {
+                const periodSubs = subEvents.filter(e => (e.period || 1) === period);
+
+                if (period === 1) {
+                    // P1 starters: players who appear as playerOutId in P1 subs (must have been on)
+                    const subbedOut = new Set(periodSubs.map(e => e.playerOutId).filter(Boolean) as string[]);
+                    // Also: players with game events in P1 who are field players
+                    const withP1Events = new Set(
+                        s.events
+                            .filter(e => (e.period || 1) === 1 && e.playerId && e.type !== 'SUBSTITUTION')
+                            .map(e => e.playerId!)
+                    );
+                    onField = new Set([...subbedOut, ...withP1Events].filter(id => isFieldPlayer(id)));
+                }
+                // else: onField carries over from previous period end
+
+                // Track when each player on field at start of this period entered
+                const entryTime: Record<string, number> = {};
+                onField.forEach(id => { entryTime[id] = 0; });
+
+                for (const sub of periodSubs) {
+                    const elapsed = sub.elapsed;
+
+                    // Player going out
+                    if (sub.playerOutId && entryTime[sub.playerOutId] !== undefined) {
+                        const timeOn = elapsed - entryTime[sub.playerOutId];
+                        accumulated[sub.playerOutId] = (accumulated[sub.playerOutId] || 0) + timeOn;
+                        accByPeriod[sub.playerOutId][period] = (accByPeriod[sub.playerOutId][period] || 0) + timeOn;
+                        delete entryTime[sub.playerOutId];
+                        onField.delete(sub.playerOutId);
+                    }
+
+                    // Player coming in
+                    if (sub.playerInId && isFieldPlayer(sub.playerInId)) {
+                        entryTime[sub.playerInId] = elapsed;
+                        onField.add(sub.playerInId);
+                    }
+                }
+
+                // Close open intervals at end of period
+                onField.forEach(id => {
+                    if (entryTime[id] !== undefined) {
+                        const timeOn = periodSecs - entryTime[id];
+                        accumulated[id] = (accumulated[id] || 0) + timeOn;
+                        accByPeriod[id][period] = (accByPeriod[id][period] || 0) + timeOn;
+                    }
+                });
+            }
+
+            const updatedPlayers = s.players.map(p => ({
+                ...p,
+                playingTime: Math.round(accumulated[p.id] || 0),
+                playingTimeByPeriod: accByPeriod[p.id] || {}
+            }));
+
+            return { ...s, players: updatedPlayers };
         });
     };
 
@@ -3548,6 +3658,25 @@ function MainDashboard() {
             let newPlayers = [...targetList];
             const playerToSave = { ...playerForm } as Player;
             if (playerToSave.position === Position.STAFF && playerToSave.number === undefined) playerToSave.number = 0;
+
+            // If the playingTime was manually edited, rescale playingTimeByPeriod proportionally
+            const originalPlayer = playerIndex >= 0 ? newPlayers[playerIndex] : null;
+            if (originalPlayer && playerToSave.playingTime !== originalPlayer.playingTime) {
+                const newTotal = playerToSave.playingTime || 0;
+                const oldTotal = originalPlayer.playingTime || 0;
+                if (oldTotal > 0 && newTotal >= 0) {
+                    const ratio = newTotal / oldTotal;
+                    const oldByPeriod = originalPlayer.playingTimeByPeriod || {};
+                    const newByPeriod: Record<number, number> = {};
+                    Object.entries(oldByPeriod).forEach(([p, t]) => {
+                        newByPeriod[Number(p)] = Math.round((t as number) * ratio);
+                    });
+                    playerToSave.playingTimeByPeriod = newByPeriod;
+                } else if (newTotal === 0) {
+                    playerToSave.playingTimeByPeriod = {};
+                }
+            }
+
             if (playerIndex >= 0) { newPlayers[playerIndex] = { ...newPlayers[playerIndex], ...playerToSave }; } else { newPlayers.push(playerToSave); }
             newPlayers.sort((a, b) => a.number - b.number);
 
@@ -3732,7 +3861,92 @@ function MainDashboard() {
         </div>
     );
     const renderOptionGrid = <T extends string>(options: T[], onSelect: (opt: T) => void) => (<div className={`grid ${options.length > 4 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}> {options.map(opt => (<button key={opt} onClick={() => onSelect(opt)} className={`p-4 text-lg font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center leading-tight ${opt === ShotOutcome.GOAL ? 'bg-green-600 hover:bg-green-500 text-white' : opt === ShotOutcome.SAVE ? 'bg-red-600 hover:bg-red-500 text-white' : opt === ShotOutcome.POST ? 'bg-slate-600 hover:bg-slate-500 text-white' : opt === ShotOutcome.MISS ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600' : opt === SanctionType.RED ? 'bg-red-700 hover:bg-red-600 text-white' : opt === SanctionType.BLUE ? 'bg-blue-600 hover:bg-blue-500 text-white' : opt === SanctionType.YELLOW ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}>{['0', '2', '4'].includes(opt) ? `${opt} min` : opt}</button>))} </div>);
-    const renderPlayerForm = () => (<form onSubmit={handleSavePlayer} className="space-y-4"> <div className="grid grid-cols-4 gap-3"> {playerForm.position !== Position.STAFF && playerForm.position !== Position.COACH && (<div className="col-span-1"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Dorsal</label><input type="number" required value={playerForm.number || ''} onChange={e => setPlayerForm(prev => ({ ...prev, number: parseInt(e.target.value) || 0 }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white text-center font-bold focus:border-handball-blue outline-none" /></div>)} <div className={playerForm.position === Position.STAFF || playerForm.position === Position.COACH ? "col-span-4" : "col-span-3"}><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Nombre</label><input required value={playerForm.name || ''} onChange={e => setPlayerForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nombre" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none" /></div></div> <div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Posición</label><select value={playerForm.position} onChange={e => setPlayerForm(prev => ({ ...prev, position: e.target.value as Position }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none">{Object.values(Position).map(pos => <option key={pos} value={pos}>{pos}</option>)}</select></div> <div className="pt-4 border-t border-slate-700"><h4 className="text-sm font-bold text-slate-300 mb-3 uppercase">Info Extra</h4><div className="grid grid-cols-2 gap-3 mb-3"><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Altura</label><input type="number" value={playerForm.height || ''} onChange={e => setPlayerForm(p => ({ ...p, height: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div><div><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Peso</label><input type="number" value={playerForm.weight || ''} onChange={e => setPlayerForm(p => ({ ...p, weight: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div><div className="mb-3"><label className="text-xs font-bold text-slate-400 uppercase block mb-1">Teléfono</label><input type="tel" value={playerForm.phone || ''} onChange={e => setPlayerForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" /></div></div> <div className="flex gap-3 pt-4">{/* Check if existing player */} {(rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) && (<button type="button" onClick={handleDeletePlayer} className="flex-1 py-3 bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Trash2 size={18} />Eliminar</button>)}<button type="button" onClick={() => setMode(InputMode.IDLE)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase rounded-xl">Cancelar</button><button type="submit" className="flex-1 py-3 bg-handball-blue hover:bg-blue-600 text-white font-bold uppercase rounded-xl flex items-center justify-center gap-2"><Save size={18} />Guardar</button></div> </form>);
+    const renderPlayerForm = () => {
+        const isExistingPlayer = (rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id);
+        const currentPt = playerForm.playingTime || 0;
+        const ptMinutes = Math.floor(currentPt / 60);
+        const ptSeconds = Math.floor(currentPt % 60);
+
+        const handlePtChange = (field: 'min' | 'sec', valStr: string) => {
+            const val = Math.max(0, parseInt(valStr, 10) || 0);
+            let newPt = 0;
+            if (field === 'min') newPt = (val * 60) + ptSeconds;
+            else newPt = (ptMinutes * 60) + Math.min(59, val);
+            setPlayerForm(prev => ({ ...prev, playingTime: newPt }));
+        };
+
+        return (
+            <form onSubmit={handleSavePlayer} className="space-y-4">
+                <div className="grid grid-cols-4 gap-3">
+                    {playerForm.position !== Position.STAFF && playerForm.position !== Position.COACH && (
+                        <div className="col-span-1">
+                            <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Dorsal</label>
+                            <input type="number" required value={playerForm.number || ''} onChange={e => setPlayerForm(prev => ({ ...prev, number: parseInt(e.target.value) || 0 }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white text-center font-bold focus:border-handball-blue outline-none" />
+                        </div>
+                    )}
+                    <div className={playerForm.position === Position.STAFF || playerForm.position === Position.COACH ? "col-span-4" : "col-span-3"}>
+                        <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Nombre</label>
+                        <input required value={playerForm.name || ''} onChange={e => setPlayerForm(prev => ({ ...prev, name: e.target.value }))} placeholder="Nombre" className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none" />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Posición</label>
+                    <select value={playerForm.position} onChange={e => setPlayerForm(prev => ({ ...prev, position: e.target.value as Position }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white focus:border-handball-blue outline-none">
+                        {Object.values(Position).map(pos => <option key={pos} value={pos}>{pos}</option>)}
+                    </select>
+                </div>
+
+                {/* Edición de Tiempo de Juego — solo para jugadores existentes */}
+                {isExistingPlayer && playerForm.position !== Position.STAFF && playerForm.position !== Position.COACH && (
+                    <div className="pt-3 border-t border-slate-700">
+                        <label className="text-xs font-bold text-amber-400 uppercase block mb-2">⏱ Corregir Tiempo de Juego</label>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Minutos</label>
+                                <input type="number" min="0" max="999" value={ptMinutes} onChange={e => handlePtChange('min', e.target.value)} className="w-full bg-slate-900 border border-amber-700/50 rounded p-3 text-white text-center font-mono font-bold focus:border-amber-500 outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase block mb-1">Segundos</label>
+                                <input type="number" min="0" max="59" value={ptSeconds} onChange={e => handlePtChange('sec', e.target.value)} className="w-full bg-slate-900 border border-amber-700/50 rounded p-3 text-white text-center font-mono font-bold focus:border-amber-500 outline-none" />
+                            </div>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1.5">Tiempo actual: <span className="font-mono text-slate-300">{String(ptMinutes).padStart(2, '0')}:{String(ptSeconds).padStart(2, '0')}</span></p>
+                    </div>
+                )}
+
+                <div className="pt-4 border-t border-slate-700">
+                    <h4 className="text-sm font-bold text-slate-300 mb-3 uppercase">Info Extra</h4>
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Altura</label>
+                            <input type="number" value={playerForm.height || ''} onChange={e => setPlayerForm(p => ({ ...p, height: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Peso</label>
+                            <input type="number" value={playerForm.weight || ''} onChange={e => setPlayerForm(p => ({ ...p, weight: parseInt(e.target.value) }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" />
+                        </div>
+                    </div>
+                    <div className="mb-3">
+                        <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Teléfono</label>
+                        <input type="tel" value={playerForm.phone || ''} onChange={e => setPlayerForm(p => ({ ...p, phone: e.target.value }))} className="w-full bg-slate-900 border border-slate-700 rounded p-3 text-white outline-none" />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                    {isExistingPlayer && (
+                        <button type="button" onClick={handleDeletePlayer} className="flex-1 py-3 bg-red-900/30 hover:bg-red-900/50 text-red-300 border border-red-900/50 font-bold uppercase rounded-xl flex items-center justify-center gap-2">
+                            <Trash2 size={18} />Eliminar
+                        </button>
+                    )}
+                    <button type="button" onClick={() => setMode(InputMode.IDLE)} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold uppercase rounded-xl">Cancelar</button>
+                    <button type="submit" className="flex-1 py-3 bg-handball-blue hover:bg-blue-600 text-white font-bold uppercase rounded-xl flex items-center justify-center gap-2">
+                        <Save size={18} />Guardar
+                    </button>
+                </div>
+            </form>
+        );
+    };
     const renderEventEditor = () => {
         const currentTimestamp = eventForm.timestamp ?? 0;
         const currentMin = Math.floor(currentTimestamp / 60);
@@ -4114,6 +4328,7 @@ function MainDashboard() {
                 onCreateTeam={handleCreateTeam}
                 onDeleteTeam={handleDeleteTeam}
                 onViewCloudMatches={() => window.location.href = '/cloud'}
+                onSyncClick={() => { setLoginOrigin('TEAM_SELECT'); setView('LOGIN'); }}
             />
         );
     }
@@ -4200,7 +4415,7 @@ function MainDashboard() {
                     if (showAllMatches) setMatchHistory(getMatchHistory());
                     else if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
                 }}
-                onLogin={() => setView('LOGIN')}
+                onLogin={() => { setLoginOrigin('INFO'); setView('LOGIN'); }}
                 showAllMatches={showAllMatches}
                 onToggleShowAll={() => setShowAllMatches(!showAllMatches)}
             />
@@ -4210,12 +4425,12 @@ function MainDashboard() {
     if (view === 'LOGIN') {
         return (
             <LoginView
-                onBack={() => setView('INFO')}
+                onBack={() => setView(loginOrigin)}
                 onLoginSuccess={async () => {
                     // Sync cloud data down before refreshing UI
                     await syncTeamsDown();
                     await syncMatchesDown();
-                    setView('INFO');
+                    setView(loginOrigin);
                 }}
                 onSync={handleSyncSuccess}
                 onViewCloudMatches={() => setView('CLOUD')}
@@ -4248,6 +4463,46 @@ function MainDashboard() {
                         <ErrorBoundary viewName="Timeline">
                             <TimelineView state={state} onDeleteEvent={handleDeleteEvent} onEditEvent={openEditEventModal} onAddEvent={handleStartAddEvent} onResetMatch={handleResetMatch} />
                         </ErrorBoundary>
+                    )}
+                    {view === 'INFO' && (
+                        <InfoView
+                            matches={matchHistory}
+                            onLoad={(id) => handleLoadMatch(id, 'MATCH')}
+                            onDelete={handleDeleteArchivedMatch}
+                            onEdit={(id) => { handleEditArchivedMatch(id); }}
+                            currentMatchMetadata={state.metadata}
+                            onNewMatch={handleNewMatch}
+                            onSave={handleManualSave}
+                            isSaving={isSaving}
+                            onImport={handleImportMatch}
+                            onExport={(id) => handleExportMatch(id)}
+                            onSwitchTeam={handleSwitchTeam}
+                            onViewGlobalStats={() => setView('GLOBAL_STATS')}
+                            onBack={() => setView('MATCH')}
+                            onRefresh={() => {
+                                if (showAllMatches) setMatchHistory(getMatchHistory());
+                                else if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
+                            }}
+                            onLogin={() => { setLoginOrigin('INFO'); setView('LOGIN'); }}
+                            showAllMatches={showAllMatches}
+                            onToggleShowAll={() => setShowAllMatches(!showAllMatches)}
+                        />
+                    )}
+                    {view === 'LOGIN' && (
+                        <LoginView
+                            onBack={() => {
+                                handleSyncSuccess(); // Refreshes data after possible manual downloads
+                                setView(loginOrigin);
+                            }}
+                            onLoginSuccess={async () => {
+                                await syncTeamsDown();
+                                await syncMatchesDown();
+                                handleSyncSuccess(); // Force state refresh here too
+                                setView(loginOrigin);
+                            }}
+                            onSync={handleSyncSuccess}
+                            onViewCloudMatches={() => setView('CLOUD')}
+                        />
                     )}
                     {view === 'ROSTER' && (
                         <div className="p-4 max-w-xl mx-auto min-h-full">
@@ -4285,6 +4540,11 @@ function MainDashboard() {
                                 <button onClick={handleRecoverRosterFromTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-orange-300">
                                     <RefreshCw size={16} /> Recuperar
                                 </button>
+                                {rosterTab === 'HOME' && (
+                                    <button onClick={handleRecalculatePlayingTimes} className="text-xs bg-amber-700/40 border border-amber-600/50 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-amber-700/70 transition-colors text-amber-300">
+                                        ⚡ Recalcular
+                                    </button>
+                                )}
                                 <button onClick={() => setMode(InputMode.IMPORT_ROSTER)} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-green-400">
                                     <FileSpreadsheet size={16} /> Importar Excel
                                 </button>

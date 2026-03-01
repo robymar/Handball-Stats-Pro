@@ -304,40 +304,27 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
   try {
     const user = auth.currentUser;
 
-    // Get all team IDs I have access to (owned or shared)
-    // We rely on local teams cache which should be synced before calling this
-    const localTeams = getTeams();
-    const allTeamIds = localTeams.map(t => t.id);
-
-    if (allTeamIds.length === 0) return [];
-
-    // Query collectionGroup to find matches belonging to any of these teams
-    // This allows seeing matches from shared teams
-    const q = query(
-      collectionGroup(db, 'matches'),
-      where('ownerTeamId', 'in', allTeamIds)
-    );
-
-    const querySnapshot = await getDocs(q);
+    // Query directly from the user's own matches subcollection — no index required
+    const matchesRef = collection(db, 'users', user.uid, 'matches');
+    const querySnapshot = await getDocs(matchesRef);
 
     const matches = querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
       const data = d.data();
       return {
         id: d.id,
-        date: data.date,
-        homeTeam: data.homeTeam,
-        awayTeam: data.awayTeam,
-        homeScore: data.homeScore,
-        awayScore: data.awayScore,
-        location: data.location,
+        date: data.date || data.matchData?.metadata?.date || new Date().toISOString(),
+        homeTeam: data.homeTeam || data.matchData?.metadata?.homeTeam || '?',
+        awayTeam: data.awayTeam || data.matchData?.metadata?.awayTeam || '?',
+        homeScore: data.homeScore ?? data.matchData?.homeScore ?? 0,
+        awayScore: data.awayScore ?? data.matchData?.awayScore ?? 0,
+        location: data.location || data.matchData?.metadata?.location || '',
         category: data.category || data.matchData?.metadata?.category,
-        homeTeamLogo: data.matchData?.metadata?.homeTeamLogo,
-        awayTeamLogo: data.matchData?.metadata?.awayTeamLogo,
-        ownerTeamId: data.ownerTeamId || data.teamId
+        homeTeamLogo: data.homeTeamLogo || data.matchData?.metadata?.homeTeamLogo,
+        awayTeamLogo: data.awayTeamLogo || data.matchData?.metadata?.awayTeamLogo,
+        ownerTeamId: data.ownerTeamId || data.teamId || data.matchData?.metadata?.ownerTeamId
       };
     });
 
-    // Sort by date manually as collectionGroup 'in' query with orderBy might require complex indexing
     return matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   } catch (e) {
@@ -350,17 +337,10 @@ export const getAllMatchesFullFromFirebase = async (): Promise<MatchState[]> => 
   if (!auth.currentUser) return [];
   try {
     const user = auth.currentUser;
-    const localTeams = getTeams();
-    const allTeamIds = localTeams.map(t => t.id);
 
-    if (allTeamIds.length === 0) return [];
-
-    const q = query(
-      collectionGroup(db, 'matches'),
-      where('ownerTeamId', 'in', allTeamIds)
-    );
-
-    const querySnapshot = await getDocs(q);
+    // Query directly from the user's own matches subcollection
+    const matchesRef = collection(db, 'users', user.uid, 'matches');
+    const querySnapshot = await getDocs(matchesRef);
 
     const results: MatchState[] = [];
     querySnapshot.forEach((d) => {
@@ -368,6 +348,10 @@ export const getAllMatchesFullFromFirebase = async (): Promise<MatchState[]> => 
       const state = (data.matchData || data) as MatchState;
       if (state.metadata) {
         state.metadata.id = d.id;
+        // Fix for old matches that don't have ownerTeamId inside metadata
+        if (!state.metadata.ownerTeamId) {
+          state.metadata.ownerTeamId = data.ownerTeamId || data.teamId || null;
+        }
         results.push(state);
       }
     });

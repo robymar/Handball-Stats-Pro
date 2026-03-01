@@ -1,0 +1,23 @@
+{"users": [
+{
+  "localId": "MAAZjajhX3SgHXXLozyts2pFcTh1",
+  "email": "suministros.sanealia@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "6aN3YY5LDrMYy/PIuGtg2v5fXUrSsqEr488pnvSZUxoQ6rlxUUywjfWP6r5KOjL3dBu4Dcx4G5Lb99p2icEgRg==",
+  "salt": "AOACG5uxgn/Rlg==",
+  "displayName": "Sumi",
+  "lastSignedInAt": "1772317160224",
+  "createdAt": "1772315651452",
+  "providerUserInfo": []
+},
+{
+  "localId": "SLiizPyQvOTFciAktn3iWnt0M5W2",
+  "email": "roberto.varela.backup@gmail.com",
+  "emailVerified": true,
+  "passwordHash": "3V2s33cphZaohe53rkua8DFjPhwfIcIYgw+l0QSp+fW9liQO9XIyOeefHtaYZahUrNKbHCglz3ao/uwAnHwVAQ==",
+  "salt": "rpw1dQt6ALUByA==",
+  "displayName": "Rob2",
+  "lastSignedInAt": "1772314193305",
+  "createdAt": "1771621097927",
+  "providerUserInfo": []
+}]}

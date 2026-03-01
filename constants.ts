@@ -3,16 +3,16 @@ import { Player, Position, ShotZone } from './types.ts';
 
 export const INITIAL_PLAYERS: Player[] = [
   // Titulares (7 iniciales para cubrir posiciones)
-  { id: '1', number: 59, name: 'JUAN', position: Position.GK, active: true, playingTime: 0 },
-  { id: '2', number: 97, name: 'MARCOS', position: Position.LW, active: true, playingTime: 0 },
-  { id: '3', number: 18, name: 'ALEJO', position: Position.LB, active: true, playingTime: 0 },
-  { id: '4', number: 73, name: 'IÑIGO', position: Position.CB, active: true, playingTime: 0 },
-  { id: '5', number: 5, name: 'DIEGO', position: Position.RB, active: true, playingTime: 0 },
-  { id: '6', number: 95, name: 'CHRISTIAN', position: Position.RW, active: true, playingTime: 0 },
-  { id: '7', number: 96, name: 'JOEL', position: Position.PV, active: true, playingTime: 0 },
+  { id: '1', number: 59, name: 'JUAN', position: Position.GK, active: false, playingTime: 0 },
+  { id: '2', number: 97, name: 'MARCOS', position: Position.LW, active: false, playingTime: 0 },
+  { id: '3', number: 18, name: 'ALEJO', position: Position.LB, active: false, playingTime: 0 },
+  { id: '4', number: 73, name: 'IÑIGO', position: Position.CB, active: false, playingTime: 0 },
+  { id: '5', number: 5, name: 'DIEGO', position: Position.RB, active: false, playingTime: 0 },
+  { id: '6', number: 95, name: 'CHRISTIAN', position: Position.RW, active: false, playingTime: 0 },
+  { id: '7', number: 96, name: 'JOEL', position: Position.PV, active: false, playingTime: 0 },
 
   // Cuerpo Técnico (Activo por defecto)
-  { id: 'staff_1', number: 0, name: 'Entrenador', position: Position.STAFF, active: true, playingTime: 0 },
+  { id: 'staff_1', number: 0, name: 'Entrenador', position: Position.STAFF, active: false, playingTime: 0 },
 
   // Banquillo
   { id: '8', number: 66, name: 'IKER', position: Position.LB, active: false, playingTime: 0 },
