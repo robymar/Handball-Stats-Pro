@@ -15,6 +15,7 @@ import {
   Timestamp,
   collectionGroup,
   documentId,
+  arrayUnion,
   QueryDocumentSnapshot
 } from 'firebase/firestore';
 
@@ -389,23 +390,27 @@ export const syncTeamsDown = async (): Promise<void> => {
     });
 
     // --- New: Sync Shared Teams (where I am a member) ---
-    const sharedQ = query(collectionGroup(db, 'teams'), where('sharedUids', 'array-contains', user.uid));
-    const sharedSnap = await getDocs(sharedQ);
-    sharedSnap.forEach((d) => {
-      const data = d.data();
-      cloudTeams.push({
-        id: data.id,
-        name: data.name,
-        category: data.category,
-        gender: data.gender,
-        logo: data.logoUrl,
-        players: data.players,
-        ownerUid: data.ownerUid,
-        shareCode: data.shareCode,
-        sharedUids: data.sharedUids,
-        createdAt: data.updatedAt ? data.updatedAt.toMillis() : Date.now()
+    try {
+      const sharedQ = query(collectionGroup(db, 'teams'), where('sharedUids', 'array-contains', user.uid));
+      const sharedSnap = await getDocs(sharedQ);
+      sharedSnap.forEach((d) => {
+        const data = d.data();
+        cloudTeams.push({
+          id: data.id,
+          name: data.name,
+          category: data.category,
+          gender: data.gender,
+          logo: data.logoUrl,
+          players: data.players,
+          ownerUid: data.ownerUid,
+          shareCode: data.shareCode,
+          sharedUids: data.sharedUids,
+          createdAt: data.updatedAt ? data.updatedAt.toMillis() : Date.now()
+        });
       });
-    });
+    } catch (err) {
+      console.warn("Could not fetch shared teams due to missing index, skipping...", err);
+    }
 
     // Merge with local teams? Or overwrite? 
     // For simplicity, let's merge: favor cloud if conflict, but keep local only if not in cloud?
@@ -449,12 +454,16 @@ export const syncMatchesDown = async (): Promise<void> => {
     if (allTeamIds.length > 0) {
       // Find matches where ownerTeamId is in our team list
       // This ensures Owners see Delegate matches and vice-versa
-      const sharedMatchesQ = query(collectionGroup(db, 'matches'), where('ownerTeamId', 'in', allTeamIds));
-      const sharedMatchesSnap = await getDocs(sharedMatchesQ);
-      for (const d of sharedMatchesSnap.docs) {
-        const data = d.data();
-        const matchData = (data.matchData || data) as MatchState;
-        await saveMatch(matchData, true);
+      try {
+        const sharedMatchesQ = query(collectionGroup(db, 'matches'), where('ownerTeamId', 'in', allTeamIds));
+        const sharedMatchesSnap = await getDocs(sharedMatchesQ);
+        for (const d of sharedMatchesSnap.docs) {
+          const data = d.data();
+          const matchData = (data.matchData || data) as MatchState;
+          await saveMatch(matchData, true);
+        }
+      } catch (err) {
+        console.warn("Could not fetch shared matches locally due to missing index, skipping...", err);
       }
     }
 
@@ -476,23 +485,35 @@ export const joinTeamWithCode = async (code: string): Promise<boolean> => {
     const teamDoc = snap.docs[0];
     const teamData = teamDoc.data();
 
-    // Add me to sharedUids
-    const sharedUids = teamData.sharedUids || [];
-    if (!sharedUids.includes(user.uid)) {
-      sharedUids.push(user.uid);
-      await setDoc(teamDoc.ref, { sharedUids }, { merge: true });
-    }
+    // Use arrayUnion for an atomic, safe append of just the UID (no race conditions or overwrites)
+    await setDoc(teamDoc.ref, { sharedUids: arrayUnion(user.uid) }, { merge: true });
 
-    // Sync down everything to update UI
+    // Save the team locally immediately so it shows up without needing a separate sync
+    const joinedTeam: Team = {
+      id: teamData.id || teamDoc.id,
+      name: teamData.name,
+      category: teamData.category,
+      gender: teamData.gender,
+      logo: teamData.logoUrl,
+      players: teamData.players || [],
+      ownerUid: teamData.ownerUid,
+      shareCode: teamData.shareCode,
+      sharedUids: [...(teamData.sharedUids || []), user.uid],
+      createdAt: teamData.updatedAt ? teamData.updatedAt.toMillis() : Date.now()
+    };
+    await saveTeam(joinedTeam, true); // skipSync=true because we already synced above
+
+    // Full sync to also pull down the team's matches
     await syncTeamsDown();
     await syncMatchesDown();
 
     return true;
   } catch (e) {
-    console.error("Join team error:", e);
+    console.error('Join team error:', e);
     return false;
   }
 };
+
 
 export const generateTeamShareCode = async (teamId: string): Promise<string | null> => {
   if (!auth.currentUser) return null;

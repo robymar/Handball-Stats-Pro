@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { loadMatch, getMatchHistory, MatchSummary } from '../services/storageService.ts';
-import { Player, Position, ShotOutcome, TurnoverType, PositiveActionType, SanctionType, ShotZone, MatchEvent } from '../types.ts';
+import { Player, Position, ShotOutcome, ShotPlacement, TurnoverType, PositiveActionType, SanctionType, ShotZone, MatchEvent } from '../types.ts';
 import { RATING_WEIGHTS } from '../constants.ts';
+import { GoalStatsSVG } from './GoalStatsSVG.tsx';
 import { ArrowLeft, Trophy, Calendar, Activity, ShieldAlert, Download, MousePointerClick, BarChart3, Zap, Target, TrendingUp, Info, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 
 interface GlobalStatsViewProps {
@@ -53,6 +54,7 @@ interface AggregatedPlayerStats {
     goalsAgainst: number;
     gkAssists: number;
     totalRating: number;
+    gkPlacementMap: Partial<Record<ShotPlacement, { goals: number; saves: number }>>;
 }
 
 type GlobalTab = 'GENERAL' | 'SHOOTING' | 'GOALKEEPERS' | 'POSITIVE' | 'TURNOVERS';
@@ -89,16 +91,29 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 goals: 0, totalShots: 0, assists: 0, steals: 0, blocks: 0, yellow: 0, twoMin: 0, red: 0, blue: 0,
                 turnovers: 0, turnoverPass: 0, turnoverReception: 0, turnoverSteps: 0, turnoverDouble: 0, turnoverLine: 0, turnoverOffFoul: 0,
                 penalties: 0, goodDef: 0, sixM: { goals: 0, total: 0 }, nineM: { goals: 0, total: 0 }, wing: { goals: 0, total: 0 },
-                sevenM: { goals: 0, total: 0 }, fastbreak: { goals: 0, total: 0 }, saves: 0, goalsAgainst: 0, gkAssists: 0, totalRating: 0
+                sevenM: { goals: 0, total: 0 }, fastbreak: { goals: 0, total: 0 }, saves: 0, goalsAgainst: 0, gkAssists: 0, totalRating: 0,
+                gkPlacementMap: {}
             });
 
+            const normalizeName = (name: string): string =>
+                name
+                    .trim()
+                    .toLowerCase()
+                    .normalize('NFD')                        // decompose accented chars
+                    .replace(/[\u0300-\u036f]/g, '')         // strip accent marks
+                    .replace(/\s+/g, ' ');                   // collapse multiple spaces
+
             const getEntry = (p: Player): AggregatedPlayerStats => {
-                const key = `${p.number}-${p.name.trim().toLowerCase()}`;
+                // Key = dorsal + normalized name. This merges the same player across
+                // matches even if their UUID or exact capitalisation differs between sessions.
+                const key = `${p.number}-${normalizeName(p.name)}`;
                 if (!playerStatsMap.has(key)) playerStatsMap.set(key, initStats(p));
                 const entry = playerStatsMap.get(key)!;
-                entry.name = p.name; entry.position = p.position;
+                // Keep the most "canonical" name (first seen wins, but always update position)
+                entry.position = p.position;
                 return entry;
             };
+
 
             const processMatch = (match: any, summary?: MatchSummary) => {
                 if (!summary) processedMatches.push({ id: match.metadata.id, date: match.metadata.date || new Date().toISOString(), homeTeam: match.metadata.homeTeam, awayTeam: match.metadata.awayTeam, homeScore: match.homeScore, awayScore: match.awayScore });
@@ -110,6 +125,8 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 if (ourScore > oppScore) w++; else if (ourScore === oppScore) d++; else l++;
 
                 match.players.forEach((p: Player) => {
+                    // Skip non-playing roles entirely — they have no stats to track
+                    if (p.position === Position.STAFF || p.position === Position.COACH) return;
                     const entry = getEntry(p);
                     entry.matchesPlayed++;
                     entry.playingTime += (p.playingTime || 0);
@@ -158,7 +175,19 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                 match.events.forEach((e: MatchEvent) => {
                     if (e.type === 'OPPONENT_SHOT' && e.isOpponent && e.playerId) {
                         const p = match.players.find((pl: Player) => pl.id === e.playerId);
-                        if (p) { const entry = getEntry(p); if (e.shotOutcome === ShotOutcome.SAVE) entry.saves++; if (e.shotOutcome === ShotOutcome.GOAL) entry.goalsAgainst++; }
+                        if (p) {
+                            const entry = getEntry(p);
+                            if (e.shotOutcome === ShotOutcome.SAVE) entry.saves++;
+                            if (e.shotOutcome === ShotOutcome.GOAL) entry.goalsAgainst++;
+                            // Accumulate placement heatmap
+                            if (e.shotPlacement) {
+                                if (!entry.gkPlacementMap[e.shotPlacement]) {
+                                    entry.gkPlacementMap[e.shotPlacement] = { goals: 0, saves: 0 };
+                                }
+                                if (e.shotOutcome === ShotOutcome.GOAL) entry.gkPlacementMap[e.shotPlacement]!.goals++;
+                                else if (e.shotOutcome === ShotOutcome.SAVE) entry.gkPlacementMap[e.shotPlacement]!.saves++;
+                            }
+                        }
                     }
                 });
             };
@@ -190,14 +219,55 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
         return [...players].sort((a, b) => {
             let vA: any = 0, vB: any = 0;
             const k = sortConfig.key;
+            // General
             if (k === 'number') { vA = a.number; vB = b.number; }
+            else if (k === 'matchesPlayed') { vA = a.matchesPlayed; vB = b.matchesPlayed; }
             else if (k === 'goals') { vA = a.goals; vB = b.goals; }
             else if (k === 'rating') { vA = a.matchesPlayed > 0 ? a.totalRating / a.matchesPlayed : 0; vB = b.matchesPlayed > 0 ? b.totalRating / b.matchesPlayed : 0; }
             else if (k === 'percentage') { vA = a.totalShots > 0 ? a.goals / a.totalShots : 0; vB = b.totalShots > 0 ? b.goals / b.totalShots : 0; }
+            // Shooting zones
+            else if (k === 'sixM') { vA = a.sixM.goals; vB = b.sixM.goals; }
+            else if (k === 'nineM') { vA = a.nineM.goals; vB = b.nineM.goals; }
+            else if (k === 'wing') { vA = a.wing.goals; vB = b.wing.goals; }
+            else if (k === 'sevenM') { vA = a.sevenM.goals; vB = b.sevenM.goals; }
+            else if (k === 'fastbreak') { vA = a.fastbreak.goals; vB = b.fastbreak.goals; }
+            // Goalkeepers
+            else if (k === 'saves') { vA = a.saves; vB = b.saves; }
+            else if (k === 'goalsAgainst') { vA = a.goalsAgainst; vB = b.goalsAgainst; }
+            else if (k === 'savePercent') { const tA = a.saves + a.goalsAgainst, tB = b.saves + b.goalsAgainst; vA = tA > 0 ? a.saves / tA : 0; vB = tB > 0 ? b.saves / tB : 0; }
+            // Positive actions
+            else if (k === 'assists') { vA = a.assists; vB = b.assists; }
+            else if (k === 'steals') { vA = a.steals; vB = b.steals; }
+            else if (k === 'penalties') { vA = a.penalties; vB = b.penalties; }
+            else if (k === 'goodDef') { vA = a.goodDef; vB = b.goodDef; }
+            else if (k === 'blocks') { vA = a.blocks; vB = b.blocks; }
+            // Turnovers
+            else if (k === 'turnovers') { vA = a.turnovers; vB = b.turnovers; }
+            else if (k === 'turnoverPass') { vA = a.turnoverPass; vB = b.turnoverPass; }
+            else if (k === 'turnoverReception') { vA = a.turnoverReception; vB = b.turnoverReception; }
+            else if (k === 'turnoverSteps') { vA = a.turnoverSteps; vB = b.turnoverSteps; }
+            else if (k === 'turnoverDouble') { vA = a.turnoverDouble; vB = b.turnoverDouble; }
+            else if (k === 'turnoverLine') { vA = a.turnoverLine; vB = b.turnoverLine; }
+            else if (k === 'turnoverOffFoul') { vA = a.turnoverOffFoul; vB = b.turnoverOffFoul; }
             else { vA = (a as any)[k] || 0; vB = (b as any)[k] || 0; }
             return sortConfig.direction === 'asc' ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
         });
     };
+
+    // Helper: renders a sortable <th> with indicator
+    const SortTh = ({ label, sortKey, className = '' }: { label: string; sortKey: string; className?: string }) => {
+        const isActive = sortConfig.key === sortKey;
+        const arrow = isActive ? (sortConfig.direction === 'desc' ? ' ▼' : ' ▲') : '';
+        return (
+            <th
+                onClick={() => handleHeaderClick(sortKey)}
+                className={`px-4 py-5 text-center cursor-pointer select-none transition-colors hover:text-white ${isActive ? 'text-[#0df259]' : ''} ${className}`}
+            >
+                {label}{arrow && <span className="text-[8px] ml-0.5">{arrow}</span>}
+            </th>
+        );
+    };
+
 
     if (loading) return (
         <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center text-[#0df259]">
@@ -206,7 +276,9 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
         </div>
     );
 
-    const filteredPlayers = stats.filter(p => p.position !== Position.STAFF);
+    const filteredPlayers = stats.filter(p =>
+        p.position !== Position.STAFF && p.position !== Position.COACH
+    );
     const goalkeepers = stats.filter(p => p.position === Position.GK);
 
     return (
@@ -259,7 +331,10 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                         ].map(tab => (
                             <button
                                 key={tab.id}
-                                onClick={() => setActiveTab(tab.id as GlobalTab)}
+                                onClick={() => {
+                                    setActiveTab(tab.id as GlobalTab);
+                                    setSortConfig({ key: 'matchesPlayed', direction: 'desc' });
+                                }}
                                 className={`flex items-center gap-1.5 sm:gap-2 px-4 sm:px-6 py-2 sm:py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 ${activeTab === tab.id ? 'bg-[#0df259] text-black shadow-lg shadow-[#0df259]/20' : 'text-slate-500 hover:text-white hover:bg-white/5'}`}
                             >
                                 <tab.icon size={12} className="sm:w-3.5 sm:h-3.5" /> {tab.label}
@@ -272,42 +347,54 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                             <table className="w-full text-sm">
                                 <thead className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">
                                     <tr>
-                                        <th className="px-6 py-5 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('number')}>Jugador</th>
-                                        <th className="px-4 py-5 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('matchesPlayed')}>Partidos</th>
+                                        <th
+                                            onClick={() => handleHeaderClick('number')}
+                                            className={`px-6 py-5 text-left cursor-pointer select-none hover:text-white transition-colors ${sortConfig.key === 'number' ? 'text-[#0df259]' : ''}`}
+                                        >
+                                            Jugador{sortConfig.key === 'number' && <span className="text-[8px] ml-1">{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>}
+                                        </th>
+                                        <SortTh label="Partidos" sortKey="matchesPlayed" />
                                         {activeTab === 'GENERAL' && (
                                             <>
-                                                <th className="px-4 py-5 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('goals')}>Goles</th>
-                                                <th className="px-4 py-5 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('percentage')}>%</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]" onClick={() => handleHeaderClick('rating')}>Valoración</th>
+                                                <SortTh label="Goles" sortKey="goals" />
+                                                <SortTh label="%" sortKey="percentage" />
+                                                <SortTh label="Valoración" sortKey="rating" className="text-[#0df259]" />
                                             </>
                                         )}
                                         {activeTab === 'SHOOTING' && (
                                             <>
-                                                <th className="px-4 py-5 text-center">6m</th>
-                                                <th className="px-4 py-5 text-center">9m</th>
-                                                <th className="px-4 py-5 text-center">Ext</th>
-                                                <th className="px-4 py-5 text-center">7m</th>
+                                                <SortTh label="6m" sortKey="sixM" />
+                                                <SortTh label="9m" sortKey="nineM" />
+                                                <SortTh label="Ext" sortKey="wing" />
+                                                <SortTh label="7m" sortKey="sevenM" />
+                                                <SortTh label="Contra" sortKey="fastbreak" />
                                             </>
                                         )}
                                         {activeTab === 'GOALKEEPERS' && (
                                             <>
-                                                <th className="px-4 py-5 text-center">Paradas</th>
-                                                <th className="px-4 py-5 text-center text-red-500">Goles Rec</th>
-                                                <th className="px-4 py-5 text-center text-[#0df259]">% Exito</th>
+                                                <SortTh label="Paradas" sortKey="saves" />
+                                                <SortTh label="Goles Rec" sortKey="goalsAgainst" className="text-red-400" />
+                                                <SortTh label="% Éxito" sortKey="savePercent" className="text-[#0df259]" />
                                             </>
                                         )}
                                         {activeTab === 'POSITIVE' && (
                                             <>
-                                                <th className="px-4 py-5 text-center">Asist</th>
-                                                <th className="px-4 py-5 text-center">Robos</th>
-                                                <th className="px-4 py-5 text-center">7m Prov</th>
+                                                <SortTh label="Asist" sortKey="assists" />
+                                                <SortTh label="Robos" sortKey="steals" />
+                                                <SortTh label="Blocaje" sortKey="blocks" />
+                                                <SortTh label="7m Prov" sortKey="penalties" />
+                                                <SortTh label="Buena Df" sortKey="goodDef" />
                                             </>
                                         )}
                                         {activeTab === 'TURNOVERS' && (
                                             <>
-                                                <th className="px-4 py-5 text-center text-orange-400">Total Pérdidas</th>
-                                                <th className="px-4 py-5 text-center text-slate-600">Pases</th>
-                                                <th className="px-4 py-5 text-center text-slate-600">Atención</th>
+                                                <SortTh label="Total" sortKey="turnovers" className="text-orange-400" />
+                                                <SortTh label="Pase" sortKey="turnoverPass" />
+                                                <SortTh label="Recep" sortKey="turnoverReception" />
+                                                <SortTh label="Pasos" sortKey="turnoverSteps" />
+                                                <SortTh label="Dobles" sortKey="turnoverDouble" />
+                                                <SortTh label="Pisar" sortKey="turnoverLine" />
+                                                <SortTh label="F.Ataque" sortKey="turnoverOffFoul" />
                                             </>
                                         )}
                                     </tr>
@@ -360,14 +447,20 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                                                 <>
                                                     <td className="px-4 py-4 text-center font-bold text-slate-300">{p.assists}</td>
                                                     <td className="px-4 py-4 text-center font-bold text-slate-300">{p.steals}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-300">{p.blocks}</td>
                                                     <td className="px-4 py-4 text-center font-bold text-slate-300">{p.penalties}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-300">{p.goodDef}</td>
                                                 </>
                                             )}
                                             {activeTab === 'TURNOVERS' && (
                                                 <>
                                                     <td className="px-4 py-4 text-center font-black text-orange-500">{p.turnovers}</td>
-                                                    <td className="px-4 py-4 text-center font-bold text-slate-600">{p.turnoverPass}</td>
-                                                    <td className="px-4 py-4 text-center font-bold text-slate-600">{p.turnoverSteps + p.turnoverDouble}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverPass}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverReception}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverSteps}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverDouble}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverLine}</td>
+                                                    <td className="px-4 py-4 text-center font-bold text-slate-400">{p.turnoverOffFoul}</td>
                                                 </>
                                             )}
                                         </tr>
@@ -376,6 +469,28 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                             </table>
                         </div>
                     </div>
+
+                    {/* Goalkeeper Goal Heatmaps — shown below the table when that tab is active */}
+                    {activeTab === 'GOALKEEPERS' && goalkeepers.length > 0 && (
+                        <div className="space-y-6 mt-2">
+                            {goalkeepers.map(gk => {
+                                const total = gk.saves + gk.goalsAgainst;
+                                const savePercent = total > 0 ? Math.round((gk.saves / total) * 100) : 0;
+                                return (
+                                    <GoalStatsSVG
+                                        key={gk.playerId}
+                                        stats={gk.gkPlacementMap}
+                                        title="Mapa de Portería · Temporada"
+                                        playerName={`#${gk.number} ${gk.name}`}
+                                        totalShots={total}
+                                        savePercent={savePercent}
+                                        mode="GK"
+                                    />
+                                );
+                            })}
+                        </div>
+                    )}
+
                 </div>
 
                 {/* Match History Tray */}

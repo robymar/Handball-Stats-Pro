@@ -4328,7 +4328,18 @@ function MainDashboard() {
                 onCreateTeam={handleCreateTeam}
                 onDeleteTeam={handleDeleteTeam}
                 onViewCloudMatches={() => window.location.href = '/cloud'}
-                onSyncClick={() => { setLoginOrigin('TEAM_SELECT'); setView('LOGIN'); }}
+                onSyncClick={async () => {
+                    if (auth.currentUser) {
+                        // Already logged in: sync directly and refresh UI
+                        await syncTeamsDown();
+                        await syncMatchesDown();
+                        handleSyncSuccess();
+                    } else {
+                        // Not logged in: go to login/sync screen
+                        setLoginOrigin('TEAM_SELECT');
+                        setView('LOGIN');
+                    }
+                }}
             />
         );
     }
