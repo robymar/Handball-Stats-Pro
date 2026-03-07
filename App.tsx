@@ -205,6 +205,81 @@ const recalculateMatchState = (currentState: MatchState): MatchState => {
     };
 };
 
+// Pure function: recalculates playing times from SUBSTITUTION events.
+// This is the canonical, accurate method — timer-based accumulation is only used live display.
+const recalculatePlayingTimesFromEvents = (s: MatchState): MatchState => {
+    const periodSecs = s.timerSettings.durationMinutes * 60;
+    const direction = s.timerSettings.direction;
+    const numPeriods = s.currentPeriod;
+
+    const toElapsed = (ts: number) => direction === 'UP' ? ts : Math.max(0, periodSecs - ts);
+
+    const subEvents = s.events
+        .filter(e => e.type === 'SUBSTITUTION' && !e.isOpponent)
+        .map(e => ({ ...e, elapsed: toElapsed(e.timestamp || 0) }))
+        .sort((a, b) => ((a.period || 1) - (b.period || 1)) || a.elapsed - b.elapsed);
+
+    const accumulated: Record<string, number> = {};
+    const accByPeriod: Record<string, Record<number, number>> = {};
+    s.players.forEach(p => { accumulated[p.id] = 0; accByPeriod[p.id] = {}; });
+
+    const isFieldPlayer = (id: string) => {
+        const p = s.players.find(x => x.id === id);
+        return p && p.position !== Position.STAFF && p.position !== Position.COACH;
+    };
+
+    let onField = new Set<string>();
+
+    for (let period = 1; period <= numPeriods; period++) {
+        const periodSubs = subEvents.filter(e => (e.period || 1) === period);
+
+        if (period === 1) {
+            const subbedOut = new Set(periodSubs.map(e => e.playerOutId).filter(Boolean) as string[]);
+            const withP1Events = new Set(
+                s.events
+                    .filter(e => (e.period || 1) === 1 && e.playerId && e.type !== 'SUBSTITUTION')
+                    .map(e => e.playerId!)
+            );
+            onField = new Set([...subbedOut, ...withP1Events].filter(id => isFieldPlayer(id)));
+        }
+
+        const entryTime: Record<string, number> = {};
+        onField.forEach(id => { entryTime[id] = 0; });
+
+        for (const sub of periodSubs) {
+            const elapsed = sub.elapsed;
+            if (sub.playerOutId && entryTime[sub.playerOutId] !== undefined) {
+                const timeOn = elapsed - entryTime[sub.playerOutId];
+                accumulated[sub.playerOutId] = (accumulated[sub.playerOutId] || 0) + timeOn;
+                accByPeriod[sub.playerOutId][period] = (accByPeriod[sub.playerOutId][period] || 0) + timeOn;
+                delete entryTime[sub.playerOutId];
+                onField.delete(sub.playerOutId);
+            }
+            if (sub.playerInId && isFieldPlayer(sub.playerInId)) {
+                entryTime[sub.playerInId] = elapsed;
+                onField.add(sub.playerInId);
+            }
+        }
+
+        // Close open intervals at end of period — full period duration for players still on field
+        onField.forEach(id => {
+            if (entryTime[id] !== undefined) {
+                const timeOn = periodSecs - entryTime[id];
+                accumulated[id] = (accumulated[id] || 0) + timeOn;
+                accByPeriod[id][period] = (accByPeriod[id][period] || 0) + timeOn;
+            }
+        });
+    }
+
+    const updatedPlayers = s.players.map(p => ({
+        ...p,
+        playingTime: Math.round(accumulated[p.id] || 0),
+        playingTimeByPeriod: accByPeriod[p.id] || {}
+    }));
+
+    return { ...s, players: updatedPlayers };
+};
+
 const isPlayerDisqualified = (playerId: string, events: MatchEvent[]): boolean => {
     const playerSanctions = events.filter(e => e.playerId === playerId && e.type === 'SANCTION');
     const hasRed = playerSanctions.some(e => e.sanctionType === SanctionType.RED);
@@ -1040,10 +1115,10 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                                     }}
                                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none"
                                 >
-                                    <option value="30">30 min (Senior)</option>
-                                    <option value="25">25 min (Cadete)</option>
-                                    <option value="20">20 min (Infantil)</option>
-                                    <option value="15">15 min (Alevin)</option>
+                                    <option value="30">30 min</option>
+                                    <option value="25">25 min</option>
+                                    <option value="20">20 min</option>
+                                    <option value="15">15 min</option>
                                     <option value="custom">Otro...</option>
                                 </select>
                                 {![30, 25, 20, 15].includes(form.regularDuration) && (
@@ -1463,14 +1538,16 @@ function MainDashboard() {
 
     const handleManualSave = async () => {
         setIsSaving(true);
-        saveMatch(state);
+        // Auto-recalculate playing times from substitution events before saving
+        const correctedState = recalculatePlayingTimesFromEvents(state);
+        setState(correctedState);
+        saveMatch(correctedState);
 
         // Also update the backup file in Downloads if native
         if (Capacitor.isNativePlatform()) {
             try {
-                // Ensure state id is valid
-                if (state.metadata && state.metadata.id) {
-                    await handleExportMatch(state.metadata.id, true);
+                if (correctedState.metadata && correctedState.metadata.id) {
+                    await handleExportMatch(correctedState.metadata.id, true);
                 }
             } catch (e) {
                 console.error("Silent backup failed", e);
@@ -1483,13 +1560,22 @@ function MainDashboard() {
     useEffect(() => {
         const isMatchActive = view === 'MATCH';
         if (!isMatchActive) return;
-        const intervalId = setInterval(() => { saveMatch(stateRef.current); }, 30000);
-        const handleBeforeUnload = () => { saveMatch(stateRef.current); };
+        // Save with recalculated playing times every 30s
+        const intervalId = setInterval(() => {
+            const corrected = recalculatePlayingTimesFromEvents(stateRef.current);
+            saveMatch(corrected);
+        }, 30000);
+        const handleBeforeUnload = () => {
+            const corrected = recalculatePlayingTimesFromEvents(stateRef.current);
+            saveMatch(corrected);
+        };
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => {
             clearInterval(intervalId);
             window.removeEventListener('beforeunload', handleBeforeUnload);
-            saveMatch(stateRef.current);
+            // Save with recalculated times on view change
+            const corrected = recalculatePlayingTimesFromEvents(stateRef.current);
+            saveMatch(corrected);
         };
     }, [view]);
 
@@ -2671,19 +2757,11 @@ function MainDashboard() {
                 .replace(/[^a-zA-Z0-9_\-\.áéíóúÁÉÍÓÚñÑ]/g, '_');
 
             if (Capacitor.isNativePlatform()) {
-                try {
-                    await Filesystem.mkdir({
-                        path: 'Download/partidos',
-                        directory: Directory.ExternalStorage,
-                        recursive: true
-                    });
-                } catch (e) { console.log('Directory create error (might exist)', e); }
-
                 const base64Data = arrayBufferToBase64(outBuffer as ArrayBuffer);
                 const result = await Filesystem.writeFile({
-                    path: `Download/partidos/${filename}`,
+                    path: filename,
                     data: base64Data,
-                    directory: Directory.ExternalStorage
+                    directory: Directory.Cache
                 });
 
                 await Share.share({
@@ -2779,18 +2857,10 @@ function MainDashboard() {
                 const base64Data = arrayBufferToBase64(outBuffer as ArrayBuffer);
 
                 if (Capacitor.isNativePlatform()) {
-                    try {
-                        await Filesystem.mkdir({
-                            path: 'Download/partidos',
-                            directory: Directory.ExternalStorage,
-                            recursive: true
-                        });
-                    } catch (e) { console.log('Directory create error (might exist)', e); }
-
                     const result = await Filesystem.writeFile({
-                        path: `Download/partidos/${filename}`,
+                        path: filename,
                         data: base64Data,
-                        directory: Directory.ExternalStorage
+                        directory: Directory.Cache
                     });
 
                     await Share.share({
@@ -2909,10 +2979,7 @@ function MainDashboard() {
 
     // --- Roster Management Extras ---
     const handleSaveRosterToTeam = async () => {
-        if (rosterTab !== 'HOME') {
-            alert("Solo puedes guardar la plantilla de 'Mi Equipo'.");
-            return;
-        }
+        // Always saves state.players (our team) regardless of which roster tab is active
         const teamId = state.metadata.teamId || state.metadata.ownerTeamId;
         if (!teamId) {
             alert("Este partido no tiene un equipo vinculado. No se puede guardar la plantilla.");
@@ -2938,26 +3005,29 @@ function MainDashboard() {
     };
 
     const handleRecoverRosterFromTeam = () => {
-        if (rosterTab !== 'HOME') {
-            alert("Solo puedes recuperar la plantilla de 'Mi Equipo'.");
-            return;
-        }
+        // Allow recovery from any roster tab - we always load into state.players (our team)
         setMode(InputMode.SELECT_TEAM_FOR_RECOVER);
     };
 
     const handleConfirmRecoverTeam = (team: Team) => {
-        if (confirm(`¿Cargar la plantilla de "${team.name}"? Se perderán los jugadores actuales y se actualizará el equipo local del partido.`)) {
-            setState(prev => ({
-                ...prev,
-                players: team.players || [],
-                metadata: {
-                    ...prev.metadata,
-                    teamId: team.id,
-                    ownerTeamId: team.id,
-                    homeTeam: team.name,
-                    homeTeamLogo: team.logo
-                }
-            }));
+        if (confirm(`¿Cargar la plantilla de "${team.name}"? Se perderán los jugadores actuales del partido.`)) {
+            setState(prev => {
+                const isOurTeamHome = prev.metadata.isOurTeamHome !== false;
+                return {
+                    ...prev,
+                    players: team.players || [],
+                    metadata: {
+                        ...prev.metadata,
+                        teamId: team.id,
+                        ownerTeamId: team.id,
+                        // Update the correct team name/logo depending on whether we are home or away
+                        homeTeam: isOurTeamHome ? team.name : prev.metadata.homeTeam,
+                        homeTeamLogo: isOurTeamHome ? team.logo : prev.metadata.homeTeamLogo,
+                        awayTeam: isOurTeamHome ? prev.metadata.awayTeam : team.name,
+                        awayTeamLogo: isOurTeamHome ? prev.metadata.awayTeamLogo : team.logo,
+                    }
+                };
+            });
             alert(`Plantilla de "${team.name}" cargada.`);
             setMode(InputMode.IDLE);
         }
@@ -3180,7 +3250,6 @@ function MainDashboard() {
         const isOT = nextPeriodNum > state.config.regularPeriods;
         const nextDuration = isOT ? state.config.otDuration : state.config.regularDuration;
         if (state.currentPeriod === state.config.regularPeriods) {
-            // Si hay empate, termina el partido sin prórroga por defecto.
             if (state.homeScore === state.awayScore) {
                 alert("Final del Partido (Empate).");
                 return;
@@ -3190,7 +3259,17 @@ function MainDashboard() {
             }
         }
         console.log(`[PERIOD CHANGE] Cambiando de P${state.currentPeriod} a P${nextPeriodNum}`);
-        setState(s => ({ ...s, currentPeriod: nextPeriodNum, isPaused: true, gameTime: s.config.timerDirection === 'DOWN' ? nextDuration * 60 : 0, timerSettings: { ...s.timerSettings, durationMinutes: nextDuration } }));
+        setState(s => {
+            // Auto-recalculate playing times at period boundary for accuracy
+            const recalculated = recalculatePlayingTimesFromEvents(s);
+            return {
+                ...recalculated,
+                currentPeriod: nextPeriodNum,
+                isPaused: true,
+                gameTime: s.config.timerDirection === 'DOWN' ? nextDuration * 60 : 0,
+                timerSettings: { ...s.timerSettings, durationMinutes: nextDuration }
+            };
+        });
     };
 
     const recordEvent = (eventData: MatchEvent, updateActiveStatus: boolean = true) => {
@@ -3252,92 +3331,10 @@ function MainDashboard() {
 
     const handleRecalculatePlayingTimes = () => {
         if (!window.confirm('⚡ ¿Recalcular los tiempos de juego a partir de los cambios registrados?\n\nSe borrarán los tiempos actuales y se reconstruirán desde los eventos de sustitución.\n\nNota: Los jugadores sin eventos ni cambios registrados quedarán a 0.')) return;
-
-        setState(s => {
-            const periodSecs = s.timerSettings.durationMinutes * 60;
-            const direction = s.timerSettings.direction;
-            const numPeriods = s.currentPeriod;
-
-            // Normalize a game-time value to "elapsed seconds within the period"
-            const toElapsed = (ts: number) => direction === 'UP' ? ts : Math.max(0, periodSecs - ts);
-
-            // Get all HOME substitution events, sorted by period then elapsed time
-            const subEvents = s.events
-                .filter(e => e.type === 'SUBSTITUTION' && !e.isOpponent)
-                .map(e => ({ ...e, elapsed: toElapsed(e.timestamp || 0) }))
-                .sort((a, b) => ((a.period || 1) - (b.period || 1)) || a.elapsed - b.elapsed);
-
-            // Track accumulated playing time (in seconds) per player
-            const accumulated: Record<string, number> = {};
-            const accByPeriod: Record<string, Record<number, number>> = {};
-            s.players.forEach(p => { accumulated[p.id] = 0; accByPeriod[p.id] = {}; });
-
-            // Players who are NOT field players — skip them
-            const isFieldPlayer = (id: string) => {
-                const p = s.players.find(x => x.id === id);
-                return p && p.position !== Position.STAFF && p.position !== Position.COACH;
-            };
-
-            let onField = new Set<string>();
-
-            for (let period = 1; period <= numPeriods; period++) {
-                const periodSubs = subEvents.filter(e => (e.period || 1) === period);
-
-                if (period === 1) {
-                    // P1 starters: players who appear as playerOutId in P1 subs (must have been on)
-                    const subbedOut = new Set(periodSubs.map(e => e.playerOutId).filter(Boolean) as string[]);
-                    // Also: players with game events in P1 who are field players
-                    const withP1Events = new Set(
-                        s.events
-                            .filter(e => (e.period || 1) === 1 && e.playerId && e.type !== 'SUBSTITUTION')
-                            .map(e => e.playerId!)
-                    );
-                    onField = new Set([...subbedOut, ...withP1Events].filter(id => isFieldPlayer(id)));
-                }
-                // else: onField carries over from previous period end
-
-                // Track when each player on field at start of this period entered
-                const entryTime: Record<string, number> = {};
-                onField.forEach(id => { entryTime[id] = 0; });
-
-                for (const sub of periodSubs) {
-                    const elapsed = sub.elapsed;
-
-                    // Player going out
-                    if (sub.playerOutId && entryTime[sub.playerOutId] !== undefined) {
-                        const timeOn = elapsed - entryTime[sub.playerOutId];
-                        accumulated[sub.playerOutId] = (accumulated[sub.playerOutId] || 0) + timeOn;
-                        accByPeriod[sub.playerOutId][period] = (accByPeriod[sub.playerOutId][period] || 0) + timeOn;
-                        delete entryTime[sub.playerOutId];
-                        onField.delete(sub.playerOutId);
-                    }
-
-                    // Player coming in
-                    if (sub.playerInId && isFieldPlayer(sub.playerInId)) {
-                        entryTime[sub.playerInId] = elapsed;
-                        onField.add(sub.playerInId);
-                    }
-                }
-
-                // Close open intervals at end of period
-                onField.forEach(id => {
-                    if (entryTime[id] !== undefined) {
-                        const timeOn = periodSecs - entryTime[id];
-                        accumulated[id] = (accumulated[id] || 0) + timeOn;
-                        accByPeriod[id][period] = (accByPeriod[id][period] || 0) + timeOn;
-                    }
-                });
-            }
-
-            const updatedPlayers = s.players.map(p => ({
-                ...p,
-                playingTime: Math.round(accumulated[p.id] || 0),
-                playingTimeByPeriod: accByPeriod[p.id] || {}
-            }));
-
-            return { ...s, players: updatedPlayers };
-        });
+        setState(s => recalculatePlayingTimesFromEvents(s));
     };
+
+
 
     const handleResetMatch = () => {
         if (!window.confirm('⚠️ ¿Estás seguro de que quieres resetear el partido?\n\nEsto eliminará todos los eventos, marcadores y tiempos, pero conservará la configuración del partido y los jugadores.')) {
@@ -4526,13 +4523,19 @@ function MainDashboard() {
                                         onClick={() => setRosterTab('HOME')}
                                         className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${rosterTab === 'HOME' ? 'bg-handball-blue text-white shadow' : 'text-slate-400 hover:text-white'}`}
                                     >
-                                        {state.metadata.homeTeam}
+                                        <span>{state.metadata.homeTeam}</span>
+                                        {state.metadata.isOurTeamHome !== false && (
+                                            <span className="ml-1 text-[9px] bg-green-500/30 text-green-300 px-1 py-0.5 rounded">Mi Equipo</span>
+                                        )}
                                     </button>
                                     <button
                                         onClick={() => setRosterTab('AWAY')}
                                         className={`px-3 py-1.5 rounded-md text-sm font-bold transition-all ${rosterTab === 'AWAY' ? 'bg-handball-blue text-white shadow' : 'text-slate-400 hover:text-white'}`}
                                     >
-                                        {state.metadata.awayTeam}
+                                        <span>{state.metadata.awayTeam}</span>
+                                        {state.metadata.isOurTeamHome === false && (
+                                            <span className="ml-1 text-[9px] bg-green-500/30 text-green-300 px-1 py-0.5 rounded">Mi Equipo</span>
+                                        )}
                                     </button>
                                 </div>
                             </div>
