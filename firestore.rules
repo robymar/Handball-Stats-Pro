@@ -11,17 +11,17 @@ service cloud.firestore {
       match /teams/{teamId} {
         // Read if owner or shared member
         allow read: if request.auth != null &&
-          (request.auth.uid == userId || request.auth.uid in resource.data.sharedUids);
+          (request.auth.uid == userId || (resource.data != null && request.auth.uid in resource.data.sharedUids));
 
         // Owner can do anything
         allow write: if request.auth != null && request.auth.uid == userId;
 
-        // Delegates can join: only allowed to append their own UID to sharedUids
-        // Conditions: team must have a shareCode, only sharedUids changes, and the new value includes request.auth.uid
+        // Delegates can join: only allowed to append their own UID to sharedUids and CLEAR shareCode
         allow update: if request.auth != null
           && resource.data.shareCode != null
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids'])
-          && request.auth.uid in request.resource.data.sharedUids;
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids', 'shareCode'])
+          && request.auth.uid in request.resource.data.sharedUids
+          && request.resource.data.shareCode == null;
       }
       
       // Matches subcollection
@@ -42,11 +42,12 @@ service cloud.firestore {
     // Collection Group query for teams to support 'Join with Code' and sync of shared teams
     match /{path=**}/teams/{teamId} {
       allow list: if request.auth != null;
-      // Delegates can join by appending their UID to sharedUids
+      // Delegates can join by appending their UID to sharedUids and CLEARING shareCode
       allow update: if request.auth != null
         && resource.data.shareCode != null
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids'])
-        && request.auth.uid in request.resource.data.sharedUids;
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['sharedUids', 'shareCode'])
+        && request.auth.uid in request.resource.data.sharedUids
+        && request.resource.data.shareCode == null;
     }
   }
 }

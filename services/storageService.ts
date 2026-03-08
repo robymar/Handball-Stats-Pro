@@ -33,6 +33,8 @@ export interface MatchSummary {
   awayScore: number;
   location?: string;
   category?: string;
+  round?: string;
+  isOurTeamHome?: boolean;
   homeTeamLogo?: string;
   awayTeamLogo?: string;
 }
@@ -171,6 +173,8 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
       homeScore: state.homeScore,
       awayScore: state.awayScore,
       category: state.metadata.category,
+      round: state.metadata.round,
+      isOurTeamHome: state.metadata.isOurTeamHome,
     });
 
     localStorage.setItem(INDEX_KEY, JSON.stringify(index));
@@ -211,10 +215,13 @@ export const getMatchHistory = (teamId?: string): MatchSummary[] => {
     const indexJson = localStorage.getItem(INDEX_KEY);
     const allMatches: MatchSummary[] = indexJson ? JSON.parse(indexJson) : [];
 
+    let filtered = allMatches;
     if (teamId) {
-      return allMatches.filter(m => m.ownerTeamId === teamId);
+      filtered = allMatches.filter(m => m.ownerTeamId === teamId);
     }
-    return allMatches;
+    
+    // Fix: Ordenar por fecha de forma descendente (más nuevos primero)
+    return filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   } catch (e) {
     return [];
   }
@@ -320,6 +327,8 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
         awayScore: data.awayScore ?? data.matchData?.awayScore ?? 0,
         location: data.location || data.matchData?.metadata?.location || '',
         category: data.category || data.matchData?.metadata?.category,
+        round: data.round || data.matchData?.metadata?.round,
+        isOurTeamHome: data.isOurTeamHome ?? data.matchData?.metadata?.isOurTeamHome,
         homeTeamLogo: data.homeTeamLogo || data.matchData?.metadata?.homeTeamLogo,
         awayTeamLogo: data.awayTeamLogo || data.matchData?.metadata?.awayTeamLogo,
         ownerTeamId: data.ownerTeamId || data.teamId || data.matchData?.metadata?.ownerTeamId
@@ -486,7 +495,11 @@ export const joinTeamWithCode = async (code: string): Promise<boolean> => {
     const teamData = teamDoc.data();
 
     // Use arrayUnion for an atomic, safe append of just the UID (no race conditions or overwrites)
-    await setDoc(teamDoc.ref, { sharedUids: arrayUnion(user.uid) }, { merge: true });
+    // Also clear the shareCode so it's single-use
+    await setDoc(teamDoc.ref, { 
+      sharedUids: arrayUnion(user.uid),
+      shareCode: null 
+    }, { merge: true });
 
     // Save the team locally immediately so it shows up without needing a separate sync
     const joinedTeam: Team = {
@@ -497,7 +510,7 @@ export const joinTeamWithCode = async (code: string): Promise<boolean> => {
       logo: teamData.logoUrl,
       players: teamData.players || [],
       ownerUid: teamData.ownerUid,
-      shareCode: teamData.shareCode,
+      shareCode: undefined,
       sharedUids: [...(teamData.sharedUids || []), user.uid],
       createdAt: teamData.updatedAt ? teamData.updatedAt.toMillis() : Date.now()
     };

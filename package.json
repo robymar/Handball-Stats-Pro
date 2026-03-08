@@ -1,6 +1,6 @@
 {
   "name": "handball-stats-pro",
-  "version": "1.3.6",
+  "version": "2.0.1",
   "description": "Aplicación profesional de estadísticas de balonmano",
   "type": "module",
   "scripts": {

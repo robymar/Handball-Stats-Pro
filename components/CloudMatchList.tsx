@@ -208,10 +208,10 @@ export const CloudMatchList: React.FC = () => {
 
                     {/* Team Filter Buttons */}
                     {filterTeams.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                        <div className="flex flex-nowrap gap-2 overflow-x-auto no-scrollbar pb-1">
                             <button
                                 onClick={() => { setSelectedTeam('ALL'); setSearchTerm(''); }}
-                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === 'ALL' && !searchTerm ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0 ${selectedTeam === 'ALL' && !searchTerm ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
                             >
                                 Todos
                             </button>
@@ -219,7 +219,7 @@ export const CloudMatchList: React.FC = () => {
                                 <button
                                     key={t.id}
                                     onClick={() => setSelectedTeam(t.id)}
-                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap ${selectedTeam === t.id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
+                                    className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all whitespace-nowrap shrink-0 ${selectedTeam === t.id ? 'bg-[#0df259] text-black border-[#0df259]' : 'bg-white/5 text-slate-500 border-white/5 hover:border-white/10'}`}
                                 >
                                     {t.name} {t.category ? `(${t.category})` : ''}
                                 </button>
@@ -268,6 +268,7 @@ export const CloudMatchList: React.FC = () => {
                                     <div className="flex flex-col">
                                         <span className="text-[10px] font-black text-slate-600 uppercase tracking-widest mb-1 flex items-center gap-1">
                                             <Calendar size={10} /> {new Date(match.date).toLocaleDateString()}
+                                            {match.round && ` - ${match.round.toString().toLowerCase().includes('j') ? match.round : 'Jornada ' + match.round}`}
                                         </span>
                                         <span className="text-xs font-bold text-[#0df259]/80 truncate max-w-[120px]">{match.location || 'HANDBALL ARENA'}</span>
                                     </div>
@@ -282,14 +283,22 @@ export const CloudMatchList: React.FC = () => {
                                             {match.homeTeamLogo ? <img src={match.homeTeamLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 bg-slate-900 rounded-lg" />}
                                             <span className="font-black tracking-tight text-white group-hover:text-[#0df259] transition-colors">{match.homeTeam}</span>
                                         </div>
-                                        <span className={`text-2xl font-black tabular-nums ${match.homeScore > match.awayScore ? 'text-[#0df259]' : 'text-slate-700'}`}>{match.homeScore}</span>
+                                        <span className={`text-2xl font-black tabular-nums ${
+                                            (selectedTeam !== 'ALL' || searchTerm) 
+                                            ? (match.homeScore > match.awayScore ? 'text-[#0df259]' : match.homeScore < match.awayScore ? 'text-red-500/50' : 'text-slate-500')
+                                            : (match.homeScore > match.awayScore ? 'text-[#0df259]' : 'text-slate-700')
+                                        }`}>{match.homeScore}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             {match.awayTeamLogo ? <img src={match.awayTeamLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 bg-slate-900 rounded-lg" />}
                                             <span className="font-black tracking-tight text-white group-hover:text-[#0df259] transition-colors">{match.awayTeam}</span>
                                         </div>
-                                        <span className={`text-2xl font-black tabular-nums ${match.awayScore > match.homeScore ? 'text-[#0df259]' : 'text-slate-700'}`}>{match.awayScore}</span>
+                                        <span className={`text-2xl font-black tabular-nums ${
+                                            (selectedTeam !== 'ALL' || searchTerm)
+                                            ? (match.awayScore > match.homeScore ? 'text-[#0df259]' : match.awayScore < match.homeScore ? 'text-red-500/50' : 'text-slate-500')
+                                            : (match.awayScore > match.homeScore ? 'text-[#0df259]' : 'text-slate-700')
+                                        }`}>{match.awayScore}</span>
                                     </div>
                                 </div>
 

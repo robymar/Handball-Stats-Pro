@@ -5,7 +5,7 @@ interface GoalSVGProps {
   onPlacementClick: (placement: ShotPlacement) => void;
 }
 
-export const GoalSVG: React.FC<GoalSVGProps> = ({ onPlacementClick }) => {
+export const GoalSVG: React.FC<GoalSVGProps> = React.memo(({ onPlacementClick }) => {
   const zones = [
     { id: ShotPlacement.TOP_LEFT, x: 0, y: 0, label: '↗' },
     { id: ShotPlacement.TOP_CENTER, x: 33.3, y: 0, label: '↑' },
@@ -45,4 +45,4 @@ export const GoalSVG: React.FC<GoalSVGProps> = ({ onPlacementClick }) => {
       <div className="absolute bottom-4 left-2 right-2 h-[8px] bg-handball-blue/50 rounded-full"></div>
     </div>
   );
-};
+});

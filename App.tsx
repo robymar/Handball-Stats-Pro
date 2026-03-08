@@ -724,32 +724,80 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <h3 className="text-xl font-bold text-white truncate">{team.name}</h3>
-                                                {!isOwner && <Zap size={14} className="text-indigo-400" title="Equipo Compartido" />}
+                                                {!isOwner && <Zap size={14} className="text-indigo-400" />}
                                             </div>
                                             <p className="text-sm text-slate-500">{team.category} {team.gender === 'MALE' ? 'Masc' : 'Fem'}</p>
 
                                             {isOwner && (
-                                                <div className="mt-2 text-[10px] font-bold">
+                                                <div className="mt-3 flex items-center gap-2">
                                                     {team.shareCode ? (
-                                                        <span className="bg-slate-900 text-handball-blue px-2 py-0.5 rounded border border-handball-blue/30">CÓDIGO: {team.shareCode}</span>
+                                                        <div className="flex items-center gap-1.5 bg-slate-900/80 border border-slate-700/50 pl-2.5 pr-1.5 py-1 rounded-lg">
+                                                            <div className="flex flex-col">
+                                                                <span className="text-[7px] text-slate-500 font-black uppercase leading-none mb-0.5">Código Invitación</span>
+                                                                <span className="text-handball-blue text-xs font-black tracking-widest">{team.shareCode}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1 ml-1">
+                                                                <button
+                                                                    onClick={(e) => { 
+                                                                        e.stopPropagation(); 
+                                                                        navigator.clipboard.writeText(team.shareCode || '');
+                                                                        alert("Código copiado al portapapeles");
+                                                                    }}
+                                                                    onTouchStart={(e) => e.stopPropagation()}
+                                                                    className="p-1.5 text-slate-500 hover:text-white bg-white/5 rounded-md transition-colors"
+                                                                    title="Copiar Código"
+                                                                >
+                                                                    <Copy size={12} />
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleGenerateCode(team); }}
+                                                                    onTouchStart={(e) => e.stopPropagation()}
+                                                                    className="p-1.5 text-slate-500 hover:text-handball-blue bg-white/5 rounded-md transition-colors"
+                                                                    title="Regenerar Código"
+                                                                >
+                                                                    <RefreshCw size={12} />
+                                                                </button>
+                                                            </div>
+                                                        </div>
                                                     ) : (
                                                         <button
                                                             onClick={(e) => { e.stopPropagation(); handleGenerateCode(team); }}
-                                                            className="text-slate-500 hover:text-white flex items-center gap-1"
+                                                            onTouchStart={(e) => e.stopPropagation()}
+                                                            className="text-slate-500 hover:text-white flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider bg-white/5 px-2 py-1.5 rounded-lg border border-white/5 transition-all"
                                                         >
-                                                            <Share2 size={10} /> Generar código para Delegado
+                                                            <Share2 size={12} className="text-handball-blue" /> Generar código invitación
                                                         </button>
                                                     )}
                                                 </div>
                                             )}
                                         </div>
                                         {isOwner && (
-                                            <button
-                                                onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }}
-                                                className="absolute top-2 right-2 p-2 text-slate-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                                <Trash2 size={16} />
-                                            </button>
+                                            <div className="absolute top-2 right-2 flex gap-0.5 items-center">
+                                                <button
+                                                    onClick={(e) => { 
+                                                        e.stopPropagation(); 
+                                                        setTeamToEdit(team);
+                                                        setNewName(team.name);
+                                                        setNewCategory(team.category);
+                                                        setNewGender(team.gender);
+                                                        setNewLogo(team.logo);
+                                                        setIsCreating(true);
+                                                    }}
+                                                    onTouchStart={(e) => e.stopPropagation()}
+                                                    className="p-3 text-slate-500 hover:text-handball-blue active:scale-95 transition-all focus:outline-none"
+                                                    title="Editar Equipo"
+                                                >
+                                                    <Edit2 size={18} />
+                                                </button>
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); onDeleteTeam(team.id); }}
+                                                    onTouchStart={(e) => e.stopPropagation()}
+                                                    className="p-3 text-slate-500 hover:text-red-500 active:scale-95 transition-all focus:outline-none"
+                                                    title="Borrar Equipo"
+                                                >
+                                                    <Trash2 size={18} />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 );
@@ -1167,7 +1215,7 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                 )
             }
             <div className="mt-6 text-center text-[10px] text-slate-600 uppercase font-bold tracking-widest opacity-50">
-                v1.1.69
+                v2.0.1
             </div>
 
         </div >
@@ -1277,10 +1325,29 @@ const InfoView: React.FC<InfoViewProps> = ({
                                     onClick={() => onLoad(m.id)}
                                     className="flex flex-col flex-1 min-w-0 justify-center cursor-pointer p-3 sm:p-5 hover:bg-slate-800 rounded-l-2xl transition-colors"
                                 >
-                                    <div className="text-[10px] sm:text-xs text-slate-400 mb-1">{new Date(m.date).toLocaleDateString()}</div>
+                                    <div className="text-[10px] sm:text-xs text-slate-400 mb-1">
+                                        {new Date(m.date).toLocaleDateString()}
+                                        {m.round && ` - ${m.round.toString().toLowerCase().includes('j') ? m.round : 'Jornada ' + m.round}`}
+                                    </div>
                                     <div className="font-bold text-white text-base sm:text-lg group-hover:text-handball-blue transition-colors flex flex-col sm:flex-row sm:items-baseline gap-1 sm:gap-0 leading-tight">
                                         <span className="truncate">{m.homeTeam}</span>
-                                        <span className="text-handball-orange mx-0 sm:mx-2 whitespace-nowrap text-sm sm:text-base">{m.homeScore}-{m.awayScore}</span>
+                                        {(() => {
+                                            const isHome = m.isOurTeamHome !== undefined ? m.isOurTeamHome : (m.homeTeam === currentMatchMetadata.homeTeam);
+                                            const isAway = m.isOurTeamHome !== undefined ? !m.isOurTeamHome : (m.awayTeam === currentMatchMetadata.homeTeam);
+                                            
+                                            let textColor = 'text-handball-orange'; // Draw/Neutral
+                                            if ((isHome && m.homeScore > m.awayScore) || (isAway && m.awayScore > m.homeScore)) {
+                                                textColor = 'text-green-400';
+                                            } else if ((isHome && m.homeScore < m.awayScore) || (isAway && m.awayScore < m.homeScore)) {
+                                                textColor = 'text-red-500';
+                                            }
+
+                                            return (
+                                                <span className={`${textColor} mx-0 sm:mx-2 whitespace-nowrap text-sm sm:text-base`}>
+                                                    {m.homeScore}-{m.awayScore}
+                                                </span>
+                                            );
+                                        })()}
                                         <span className="truncate text-sm sm:text-base">{m.awayTeam}</span>
                                     </div>
                                 </div>
@@ -1708,6 +1775,11 @@ function MainDashboard() {
             deleteTeam(id);
             setTeams(getTeams());
         }
+    };
+
+    const handleUpdateTeam = (updatedTeam: Team) => {
+        // Just refresh the teams list from storage to be safe and consistent
+        setTeams(getTeams());
     };
 
     const handleSwitchTeam = () => {
@@ -2946,8 +3018,9 @@ function MainDashboard() {
                     if (view === 'ROSTER') { // Check if we are in the ROSTER view
                         // Import to current team roster
                         setState(prev => {
-                            const isHome = rosterTab === 'HOME';
-                            if (isHome) {
+                            const isOurTeamHome = prev.metadata.isOurTeamHome !== false;
+                            const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+                            if (isViewingOurTeam) {
                                 const updatedState = { ...prev, players: parsedPlayers };
                                 if (currentTeam) {
                                     const updatedTeam = { ...currentTeam, players: parsedPlayers };
@@ -3005,7 +3078,7 @@ function MainDashboard() {
     };
 
     const handleRecoverRosterFromTeam = () => {
-        // Allow recovery from any roster tab - we always load into state.players (our team)
+        // Allow recovery from any roster tab - loads into players or opponentPlayers depending on current tab
         setMode(InputMode.SELECT_TEAM_FOR_RECOVER);
     };
 
@@ -3013,18 +3086,30 @@ function MainDashboard() {
         if (confirm(`¿Cargar la plantilla de "${team.name}"? Se perderán los jugadores actuales del partido.`)) {
             setState(prev => {
                 const isOurTeamHome = prev.metadata.isOurTeamHome !== false;
+                const isRecoveringHome = rosterTab === 'HOME';
+                const isRecoveringOurTeam = (isRecoveringHome && isOurTeamHome) || (!isRecoveringHome && !isOurTeamHome);
+
+                let updatedPlayers = prev.players;
+                let updatedOpponentPlayers = prev.opponentPlayers || [];
+
+                if (isRecoveringOurTeam) {
+                    updatedPlayers = team.players || [];
+                } else {
+                    updatedOpponentPlayers = team.players || [];
+                }
+
                 return {
                     ...prev,
-                    players: team.players || [],
+                    players: updatedPlayers,
+                    opponentPlayers: updatedOpponentPlayers,
                     metadata: {
                         ...prev.metadata,
-                        teamId: team.id,
-                        ownerTeamId: team.id,
-                        // Update the correct team name/logo depending on whether we are home or away
-                        homeTeam: isOurTeamHome ? team.name : prev.metadata.homeTeam,
-                        homeTeamLogo: isOurTeamHome ? team.logo : prev.metadata.homeTeamLogo,
-                        awayTeam: isOurTeamHome ? prev.metadata.awayTeam : team.name,
-                        awayTeamLogo: isOurTeamHome ? prev.metadata.awayTeamLogo : team.logo,
+                        teamId: isRecoveringOurTeam ? team.id : prev.metadata.teamId,
+                        ownerTeamId: isRecoveringOurTeam ? team.id : prev.metadata.ownerTeamId,
+                        homeTeam: isRecoveringHome ? team.name : prev.metadata.homeTeam,
+                        homeTeamLogo: isRecoveringHome ? team.logo : prev.metadata.homeTeamLogo,
+                        awayTeam: !isRecoveringHome ? team.name : prev.metadata.awayTeam,
+                        awayTeamLogo: !isRecoveringHome ? team.logo : prev.metadata.awayTeamLogo,
                     }
                 };
             });
@@ -3426,7 +3511,7 @@ function MainDashboard() {
     };
 
     // Interaction Handlers (Simplified wiring)
-    const handleOurAttackZoneClick = (zone: ShotZone) => { setPendingEvent({ type: 'SHOT', shotZone: zone, timestamp: state.gameTime, isOpponent: false }); setMode(InputMode.SELECT_SHOT_OUTCOME); };
+    const handleOurAttackZoneClick = useCallback((zone: ShotZone) => { setPendingEvent({ type: 'SHOT', shotZone: zone, timestamp: stateRef.current.gameTime, isOpponent: false }); setMode(InputMode.SELECT_SHOT_OUTCOME); }, []);
     const handleShotOutcomeSelect = (outcome: ShotOutcome) => { setPendingEvent(prev => ({ ...prev, shotOutcome: outcome })); setMode(InputMode.SELECT_PLAYER_FOR_SHOT); };
     const handlePlayerSelect = (player: Player) => {
         const playerId = player.id;
@@ -3649,8 +3734,9 @@ function MainDashboard() {
     const handleSavePlayer = (e: React.FormEvent) => {
         e.preventDefault();
         setState(s => {
-            const isHome = rosterTab === 'HOME';
-            const targetList = isHome ? s.players : s.opponentPlayers;
+            const isOurTeamHome = s.metadata.isOurTeamHome !== false;
+            const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+            const targetList = isViewingOurTeam ? s.players : s.opponentPlayers;
             const playerIndex = targetList.findIndex(p => p.id === playerForm.id);
             let newPlayers = [...targetList];
             const playerToSave = { ...playerForm } as Player;
@@ -3678,7 +3764,7 @@ function MainDashboard() {
             newPlayers.sort((a, b) => a.number - b.number);
 
             // SINCRONIZACIÓN CON EL EQUIPO (PERSISTENCIA)
-            if (isHome && currentTeam) {
+            if (isViewingOurTeam && currentTeam) {
                 // Crear una copia actualizada del equipo
                 const updatedTeam = { ...currentTeam, players: newPlayers };
 
@@ -3692,7 +3778,7 @@ function MainDashboard() {
                 setCurrentTeam(updatedTeam);
             }
 
-            if (isHome) {
+            if (isViewingOurTeam) {
                 return { ...s, players: newPlayers };
             } else {
                 return { ...s, opponentPlayers: newPlayers };
@@ -3704,8 +3790,9 @@ function MainDashboard() {
         if (!playerForm.id) return;
         if (window.confirm(`¿Eliminar?`)) {
             setState(s => {
-                const isHome = rosterTab === 'HOME';
-                if (isHome) {
+                const isOurTeamHome = s.metadata.isOurTeamHome !== false;
+                const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+                if (isViewingOurTeam) {
                     const newPlayers = s.players.filter(p => p.id !== playerForm.id);
 
                     // SINCRONIZACIÓN CON EL EQUIPO (PERSISTENCIA)
@@ -3745,7 +3832,9 @@ function MainDashboard() {
 
     // Ensure STAFF always appears in "En Pista" regardless of active status
     const currentRosterActive = useMemo(() => {
-        if (rosterTab === 'HOME') {
+        const isOurTeamHome = state.metadata.isOurTeamHome !== false;
+        const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+        if (isViewingOurTeam) {
             const staffPlayers = state.players.filter(p => p.position === Position.STAFF || p.position === Position.COACH);
             const activeNonStaff = state.players.filter(p => p.active && p.position !== Position.STAFF && p.position !== Position.COACH);
             return [...staffPlayers, ...activeNonStaff].sort((a, b) => {
@@ -3760,16 +3849,18 @@ function MainDashboard() {
         } else {
             return activeOpponentPlayers;
         }
-    }, [rosterTab, state.players, activeOpponentPlayers]);
+    }, [rosterTab, state.players, activeOpponentPlayers, state.metadata.isOurTeamHome]);
 
     const currentRosterBench = useMemo(() => {
-        if (rosterTab === 'HOME') {
+        const isOurTeamHome = state.metadata.isOurTeamHome !== false;
+        const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+        if (isViewingOurTeam) {
             // Exclude STAFF and COACH from bench since they are always in active list
             return state.players.filter(p => !p.active && p.position !== Position.STAFF && p.position !== Position.COACH).sort((a, b) => a.number - b.number);
         } else {
             return benchOpponentPlayers;
         }
-    }, [rosterTab, state.players, benchOpponentPlayers]);
+    }, [rosterTab, state.players, benchOpponentPlayers, state.metadata.isOurTeamHome]);
 
     const sanctionEndOptions = useMemo(() => {
         if (!sanctionEndedPlayerId) return benchPlayers;
@@ -3859,7 +3950,9 @@ function MainDashboard() {
     );
     const renderOptionGrid = <T extends string>(options: T[], onSelect: (opt: T) => void) => (<div className={`grid ${options.length > 4 ? 'grid-cols-3' : 'grid-cols-2'} gap-3`}> {options.map(opt => (<button key={opt} onClick={() => onSelect(opt)} className={`p-4 text-lg font-bold rounded-xl transition-all active:scale-95 flex items-center justify-center leading-tight ${opt === ShotOutcome.GOAL ? 'bg-green-600 hover:bg-green-500 text-white' : opt === ShotOutcome.SAVE ? 'bg-red-600 hover:bg-red-500 text-white' : opt === ShotOutcome.POST ? 'bg-slate-600 hover:bg-slate-500 text-white' : opt === ShotOutcome.MISS ? 'bg-slate-800 hover:bg-slate-700 text-white border border-slate-600' : opt === SanctionType.RED ? 'bg-red-700 hover:bg-red-600 text-white' : opt === SanctionType.BLUE ? 'bg-blue-600 hover:bg-blue-500 text-white' : opt === SanctionType.YELLOW ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-slate-700 hover:bg-slate-600 text-white'}`}>{['0', '2', '4'].includes(opt) ? `${opt} min` : opt}</button>))} </div>);
     const renderPlayerForm = () => {
-        const isExistingPlayer = (rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id);
+        const isOurTeamHome = state.metadata.isOurTeamHome !== false;
+        const isViewingOurTeam = (rosterTab === 'HOME' && isOurTeamHome) || (rosterTab === 'AWAY' && !isOurTeamHome);
+        const isExistingPlayer = (isViewingOurTeam ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id);
         const currentPt = playerForm.playingTime || 0;
         const ptMinutes = Math.floor(currentPt / 60);
         const ptSeconds = Math.floor(currentPt % 60);
@@ -4128,7 +4221,7 @@ function MainDashboard() {
             </div>
             <label className="w-full py-4 bg-green-600 hover:bg-green-500 text-white font-bold uppercase rounded-xl flex items-center justify-center gap-2 cursor-pointer transition-colors">
                 <FileSpreadsheet size={16} />
-                Importar para {rosterTab === 'HOME' ? 'Mi Equipo' : 'Rival'}
+                Importar para {((rosterTab === 'HOME' && state.metadata.isOurTeamHome !== false) || (rosterTab === 'AWAY' && state.metadata.isOurTeamHome === false)) ? 'Mi Equipo' : 'Rival'}
                 <input type="file" accept=".xlsx, .xls" onChange={handleImportRosterExcel} className="hidden" />
             </label>
         </div>
@@ -4324,6 +4417,7 @@ function MainDashboard() {
                 onSelectTeam={handleSelectTeam}
                 onCreateTeam={handleCreateTeam}
                 onDeleteTeam={handleDeleteTeam}
+                onUpdateTeam={handleUpdateTeam}
                 onViewCloudMatches={() => window.location.href = '/cloud'}
                 onSyncClick={async () => {
                     if (auth.currentUser) {
@@ -4472,46 +4566,6 @@ function MainDashboard() {
                             <TimelineView state={state} onDeleteEvent={handleDeleteEvent} onEditEvent={openEditEventModal} onAddEvent={handleStartAddEvent} onResetMatch={handleResetMatch} />
                         </ErrorBoundary>
                     )}
-                    {view === 'INFO' && (
-                        <InfoView
-                            matches={matchHistory}
-                            onLoad={(id) => handleLoadMatch(id, 'MATCH')}
-                            onDelete={handleDeleteArchivedMatch}
-                            onEdit={(id) => { handleEditArchivedMatch(id); }}
-                            currentMatchMetadata={state.metadata}
-                            onNewMatch={handleNewMatch}
-                            onSave={handleManualSave}
-                            isSaving={isSaving}
-                            onImport={handleImportMatch}
-                            onExport={(id) => handleExportMatch(id)}
-                            onSwitchTeam={handleSwitchTeam}
-                            onViewGlobalStats={() => setView('GLOBAL_STATS')}
-                            onBack={() => setView('MATCH')}
-                            onRefresh={() => {
-                                if (showAllMatches) setMatchHistory(getMatchHistory());
-                                else if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
-                            }}
-                            onLogin={() => { setLoginOrigin('INFO'); setView('LOGIN'); }}
-                            showAllMatches={showAllMatches}
-                            onToggleShowAll={() => setShowAllMatches(!showAllMatches)}
-                        />
-                    )}
-                    {view === 'LOGIN' && (
-                        <LoginView
-                            onBack={() => {
-                                handleSyncSuccess(); // Refreshes data after possible manual downloads
-                                setView(loginOrigin);
-                            }}
-                            onLoginSuccess={async () => {
-                                await syncTeamsDown();
-                                await syncMatchesDown();
-                                handleSyncSuccess(); // Force state refresh here too
-                                setView(loginOrigin);
-                            }}
-                            onSync={handleSyncSuccess}
-                            onViewCloudMatches={() => setView('CLOUD')}
-                        />
-                    )}
                     {view === 'ROSTER' && (
                         <div className="p-4 max-w-xl mx-auto min-h-full">
                             <div className="flex justify-between items-center mb-6">
@@ -4548,13 +4602,15 @@ function MainDashboard() {
 
 
                             <div className="flex gap-2 justify-end mb-4 flex-wrap">
-                                <button onClick={handleSaveRosterToTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-blue-300">
-                                    <Save size={16} /> Grabar
-                                </button>
+                                {((rosterTab === 'HOME' && state.metadata.isOurTeamHome !== false) || (rosterTab === 'AWAY' && state.metadata.isOurTeamHome === false)) && (
+                                    <button onClick={handleSaveRosterToTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-blue-300">
+                                        <Save size={16} /> Grabar
+                                    </button>
+                                )}
                                 <button onClick={handleRecoverRosterFromTeam} className="text-xs bg-slate-700 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-slate-600 transition-colors text-orange-300">
                                     <RefreshCw size={16} /> Recuperar
                                 </button>
-                                {rosterTab === 'HOME' && (
+                                {((rosterTab === 'HOME' && state.metadata.isOurTeamHome !== false) || (rosterTab === 'AWAY' && state.metadata.isOurTeamHome === false)) && (
                                     <button onClick={handleRecalculatePlayingTimes} className="text-xs bg-amber-700/40 border border-amber-600/50 px-3 py-2 rounded-lg font-bold uppercase flex items-center gap-1 hover:bg-amber-700/70 transition-colors text-amber-300">
                                         ⚡ Recalcular
                                     </button>
@@ -4687,7 +4743,7 @@ function MainDashboard() {
                     {sanctionEndedPlayerId && renderModal('Fin Sanción: ¿Quién entra?', renderPlayerGrid(sanctionEndOptions, handlePlayerEnterAfterSanction))}
 
                     {mode === InputMode.SELECT_PLAYER_FOR_SUBSTITUTION_IN && renderModal(`Sustituir a #${pendingSubOut?.number} ${pendingSubOut?.name}`, renderPlayerGrid(currentRosterBench, handleSubstitutionConfirm))}
-                    {mode === InputMode.EDIT_PLAYER_DETAILS && renderModal(playerForm.id && (rosterTab === 'HOME' ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) ? 'Editar Jugador' : 'Nuevo Jugador', renderPlayerForm())}
+                    {mode === InputMode.EDIT_PLAYER_DETAILS && renderModal(playerForm.id && (((rosterTab === 'HOME' && state.metadata.isOurTeamHome !== false) || (rosterTab === 'AWAY' && state.metadata.isOurTeamHome === false)) ? state.players : state.opponentPlayers || []).some(p => p.id === playerForm.id) ? 'Editar Jugador' : 'Nuevo Jugador', renderPlayerForm())}
                     {mode === InputMode.EDIT_EVENT_DETAILS && renderModal('Editar Evento', renderEventEditor())}
                     {mode === InputMode.IMPORT_ROSTER && renderModal('Importar Plantilla', renderImportRosterModal())}
                     {mode === InputMode.SELECT_TEAM_FOR_NEW_EVENT && renderModal('¿De quién es el evento?', <div className="grid grid-cols-2 gap-4"><button onClick={() => handleTeamSelectForNewEvent(false)} className="p-4 bg-slate-700 hover:bg-handball-blue text-white rounded-xl font-bold uppercase">{state.metadata.homeTeam}</button><button onClick={() => handleTeamSelectForNewEvent(true)} className="p-4 bg-red-900/50 hover:bg-red-800 text-white rounded-xl font-bold uppercase">{state.metadata.awayTeam}</button></div>)}

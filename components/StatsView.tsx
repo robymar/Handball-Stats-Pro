@@ -358,14 +358,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         </button>
                     </div>
                 )}
-                <div className="flex flex-wrap gap-2 w-full pb-1">
+                <div className="flex gap-2 w-full pb-1 overflow-x-auto no-scrollbar">
                     <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 shrink-0">
                         <button onClick={() => setPeriodFilter('ALL')} className={`px-2 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${periodFilter === 'ALL' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>Todo</button>
                         {Array.from({ length: maxPeriod }).map((_, i) => (
                             <button key={i} onClick={() => setPeriodFilter(i + 1)} className={`px-2 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black uppercase rounded transition-all ${periodFilter === i + 1 ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-300'}`}>P{i + 1}</button>
                         ))}
                     </div>
-                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 items-center flex-wrap sm:flex-nowrap shrink-0">
+                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700 items-center shrink-0">
                         <button onClick={() => setStatsTab('GENERAL')} className={`px-2 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'GENERAL' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Resumen</button>
                         <button onClick={() => setStatsTab('SHOOTING')} className={`px-2 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'SHOOTING' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Tiro</button>
                         <button onClick={() => setStatsTab('PLACEMENT')} className={`px-2 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-xs font-black uppercase rounded whitespace-nowrap transition-all ${statsTab === 'PLACEMENT' ? 'bg-handball-blue text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}>Portería</button>
@@ -401,14 +401,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                             <table className="w-full text-[10px] sm:text-sm">
                                 <thead className="bg-slate-900 text-slate-400 text-[9px] sm:text-xs uppercase font-bold">
                                     <tr>
-                                        <th className="px-1 py-2 sm:px-3 sm:py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('GOALS')}>Gol</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PERCENTAGE')}>%</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('POSITIVE')}>Pos</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Sanc</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TIME')}>Tiempo</th>
-                                        <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-purple-400 cursor-pointer hover:text-purple-300" onClick={() => handleHeaderClick('RATING')}>Val</th>
+                                        <th className="px-1 py-2 sm:px-3 sm:py-2 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('GOALS')}>Gol</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PERCENTAGE')}>%</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 cursor-pointer hover:text-green-300" onClick={() => handleHeaderClick('POSITIVE')}>Pos</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Sanc</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TIME')}>Tiempo</th>
+                                        <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-purple-400 cursor-pointer hover:text-purple-300" onClick={() => handleHeaderClick('RATING')}>Val</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700">
@@ -422,7 +422,7 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                                         <span className="truncate max-w-[60px] sm:max-w-[100px] font-bold text-handball-blue group-hover:text-white">{p.name.split(' ').pop()}</span>
                                                     </div>
                                                 </td>
-                                                <td className="px-0.5 py-1.5 text-center font-black">{s.goals}/{s.totalShots}</td>
+                                                <td className="px-0.5 py-1.5 text-center font-black whitespace-nowrap">{s.goals}/{s.totalShots}</td>
                                                 <td className="px-0.5 py-1.5 text-center text-slate-400 font-medium">{s.percentage}%</td>
                                                 <td className="px-0.5 py-1.5 text-center text-orange-300 font-bold">{s.turnovers}</td>
                                                 <td className="px-0.5 py-1.5 text-center text-green-300 font-bold">{s.positiveActions}</td>
@@ -459,13 +459,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         <table className="w-full text-[10px] sm:text-sm">
                             <thead className="bg-slate-900 text-slate-400 text-[9px] sm:text-xs uppercase font-bold">
                                 <tr>
-                                    <th className="px-1 py-2 sm:px-3 sm:py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center bg-slate-800/50 cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TOTAL_SHOTS')}>Tot</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SIX_M')}>6m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('NINE_M')}>9m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('WING')}>Ext</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SEVEN_M')}>7m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('FASTBREAK')}>Con</th>
+                                    <th className="px-1 py-2 sm:px-3 sm:py-2 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center bg-slate-800/50 cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TOTAL_SHOTS')}>Tot</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SIX_M')}>6m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('NINE_M')}>9m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('WING')}>Ext</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SEVEN_M')}>7m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('FASTBREAK')}>Con</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -587,13 +587,13 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         <table className="w-full text-[10px] sm:text-sm">
                             <thead className="bg-slate-900 text-slate-400 text-[9px] sm:text-xs uppercase font-bold">
                                 <tr>
-                                    <th className="px-1 py-2 sm:px-3 sm:py-3 text-left" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center" onClick={() => handleHeaderClick('POSITIVE')}>Tot</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 truncate" onClick={() => handleHeaderClick('STEALS')}>Rec</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 truncate" onClick={() => handleHeaderClick('ASSISTS')}>Asis</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 truncate" onClick={() => handleHeaderClick('PENALTIES')}>7m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 truncate" onClick={() => handleHeaderClick('GOOD_DEF')}>Def</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-green-400 truncate" onClick={() => handleHeaderClick('BLOCKS')}>Bloc</th>
+                                    <th className="px-1 py-2 sm:px-3 sm:py-2 text-left" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center" onClick={() => handleHeaderClick('POSITIVE')}>Tot</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 truncate" onClick={() => handleHeaderClick('STEALS')}>Rec</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 truncate" onClick={() => handleHeaderClick('ASSISTS')}>Asis</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 truncate" onClick={() => handleHeaderClick('PENALTIES')}>7m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 truncate" onClick={() => handleHeaderClick('GOOD_DEF')}>Def</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-green-400 truncate" onClick={() => handleHeaderClick('BLOCKS')}>Bloc</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -632,14 +632,14 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         <table className="w-full text-[10px] sm:text-sm">
                             <thead className="bg-slate-900 text-slate-400 text-[9px] sm:text-xs uppercase font-bold">
                                 <tr>
-                                    <th className="px-1 py-2 sm:px-3 sm:py-3 text-left" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center" onClick={() => handleHeaderClick('TURNOVERS')}>Tot</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('PASS')}>Pas</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('RECEPTION')}>Rec</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('STEPS')}>Pso</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('DOUBLE')}>Dob</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('LINE')}>Pis</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('OFF_FOUL')}>F.A</th>
+                                    <th className="px-1 py-2 sm:px-3 sm:py-2 text-left" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center" onClick={() => handleHeaderClick('TURNOVERS')}>Tot</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('PASS')}>Pas</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('RECEPTION')}>Rec</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('STEPS')}>Pso</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('DOUBLE')}>Dob</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('LINE')}>Pis</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 truncate" onClick={() => handleHeaderClick('OFF_FOUL')}>F.A</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700">
@@ -679,15 +679,15 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         <table className="w-full text-[9px] sm:text-sm">
                             <thead className="bg-slate-900 text-slate-400 text-[8px] sm:text-xs uppercase font-bold">
                                 <tr>
-                                    <th className="px-1 py-2 sm:px-3 sm:py-3 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center bg-slate-800/50 cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TOTAL_SHOTS')}>Tot</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SIX_M')}>6m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('NINE_M')}>9m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('WING')}>Ext</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SEVEN_M')}>7m</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('FASTBREAK')}>Con</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
-                                    <th className="px-0.5 py-2 sm:px-2 sm:py-3 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Snc</th>
+                                    <th className="px-1 py-2 sm:px-3 sm:py-2 text-left cursor-pointer hover:text-white" onClick={() => handleHeaderClick('PLAYER')}>Jugador</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center bg-slate-800/50 cursor-pointer hover:text-white" onClick={() => handleHeaderClick('TOTAL_SHOTS')}>Tot</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SIX_M')}>6m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('NINE_M')}>9m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('WING')}>Ext</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('SEVEN_M')}>7m</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center cursor-pointer hover:text-white" onClick={() => handleHeaderClick('FASTBREAK')}>Con</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-orange-400 cursor-pointer hover:text-orange-300" onClick={() => handleHeaderClick('TURNOVERS')}>Pér</th>
+                                    <th className="px-0.5 py-2 sm:px-2 sm:py-2 text-center text-yellow-400 cursor-pointer hover:text-yellow-300" onClick={() => handleHeaderClick('SANCTIONS')}>Snc</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-700 text-[10px] sm:text-sm">

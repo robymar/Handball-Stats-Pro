@@ -14,7 +14,7 @@ interface CourtSVGProps {
   readOnly?: boolean;
 }
 
-export const CourtSVG: React.FC<CourtSVGProps> = ({ onZoneClick, flipped = false, zoneStats, readOnly = false }) => {
+export const CourtSVG: React.FC<CourtSVGProps> = React.memo(({ onZoneClick, flipped = false, zoneStats, readOnly = false }) => {
 
   const getZoneStyle = (zone: ShotZone, isFlipped: boolean) => {
     let baseClass = '';
@@ -159,4 +159,4 @@ export const CourtSVG: React.FC<CourtSVGProps> = ({ onZoneClick, flipped = false
       )}
     </div>
   );
-};
+});

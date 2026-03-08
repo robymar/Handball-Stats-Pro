@@ -305,17 +305,17 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
 
             <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
                 {/* Stats Grid */}
-                <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <section className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
                     {[
                         { label: 'Partidos', val: matchCount, color: 'text-white', icon: Calendar },
                         { label: 'Efectividad', val: `${Math.round((wins / (matchCount || 1)) * 100)}%`, color: 'text-[#0df259]', icon: TrendingUp },
                         { label: 'Goles/P', val: (stats.reduce((acc, s) => acc + s.goals, 0) / (matchCount || 1)).toFixed(1), color: 'text-blue-400', icon: Target },
                         { label: 'Paradas/P', val: (goalkeepers.reduce((acc, s) => acc + s.saves, 0) / (matchCount || 1)).toFixed(1), color: 'text-purple-400', icon: ShieldAlert }
                     ].map((idx, i) => (
-                        <div key={i} className="bg-[#0f0f0f] border border-white/5 rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-5 group-hover:opacity-20 transition-opacity"><idx.icon size={32} className="sm:w-12 sm:h-12" /></div>
-                            <p className="text-[8px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{idx.label}</p>
-                            <p className={`text-xl sm:text-3xl font-black ${idx.color}`}>{idx.val}</p>
+                        <div key={i} className="bg-[#0f0f0f] border border-white/5 rounded-xl sm:rounded-[2rem] p-3 sm:p-6 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-2 sm:p-4 opacity-5 group-hover:opacity-20 transition-opacity"><idx.icon size={24} className="sm:w-12 sm:h-12" /></div>
+                            <p className="text-[7px] sm:text-[10px] font-black text-slate-500 uppercase tracking-widest mb-0.5 sm:mb-1">{idx.label}</p>
+                            <p className={`text-lg sm:text-3xl font-black ${idx.color}`}>{idx.val}</p>
                         </div>
                     ))}
                 </section>
@@ -349,7 +349,7 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                                     <tr>
                                         <th
                                             onClick={() => handleHeaderClick('number')}
-                                            className={`px-6 py-5 text-left cursor-pointer select-none hover:text-white transition-colors ${sortConfig.key === 'number' ? 'text-[#0df259]' : ''}`}
+                                            className={`px-6 py-3 text-left cursor-pointer select-none hover:text-white transition-colors ${sortConfig.key === 'number' ? 'text-[#0df259]' : ''}`}
                                         >
                                             Jugador{sortConfig.key === 'number' && <span className="text-[8px] ml-1">{sortConfig.direction === 'desc' ? '▼' : '▲'}</span>}
                                         </th>
@@ -402,22 +402,22 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                                 <tbody className="divide-y divide-white/5">
                                     {getSortedStats(activeTab === 'GOALKEEPERS' ? goalkeepers : filteredPlayers).map(p => (
                                         <tr key={p.playerId} className="hover:bg-white/5 transition-colors group">
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-black text-[10px] text-slate-500 group-hover:border-[#0df259]/30 transition-colors">{p.number}</span>
-                                                    <span className="font-bold tracking-tight group-hover:text-white transition-colors">{p.name}</span>
+                                            <td className="px-3 sm:px-6 py-2 sm:py-4">
+                                                <div className="flex items-center gap-2 sm:gap-3">
+                                                    <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-black text-[9px] sm:text-[10px] text-slate-500 group-hover:border-[#0df259]/30 transition-colors">{p.number}</span>
+                                                    <span className="font-bold tracking-tight text-xs sm:text-base group-hover:text-white transition-colors truncate max-w-[80px] sm:max-w-none">{p.name}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-center font-bold text-slate-400">{p.matchesPlayed}</td>
+                                            <td className="px-2 sm:px-4 py-2 sm:py-4 text-center font-bold text-slate-400 text-xs sm:text-base">{p.matchesPlayed}</td>
                                             {activeTab === 'GENERAL' && (
                                                 <>
-                                                    <td className="px-4 py-4 text-center font-black">{p.goals}<span className="text-slate-700 mx-1">/</span>{p.totalShots}</td>
-                                                    <td className="px-4 py-4 text-center">
-                                                        <span className={`font-black ${p.totalShots > 0 && (p.goals / p.totalShots >= 0.7) ? 'text-[#0df259]' : 'text-slate-500'}`}>
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-4 text-center font-black text-xs sm:text-base whitespace-nowrap">{p.goals}<span className="text-slate-700 mx-0.5">/</span>{p.totalShots}</td>
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
+                                                        <span className={`font-black text-xs sm:text-base ${p.totalShots > 0 && (p.goals / p.totalShots >= 0.7) ? 'text-[#0df259]' : 'text-slate-500'}`}>
                                                             {p.totalShots > 0 ? Math.round((p.goals / p.totalShots) * 100) : 0}%
                                                         </span>
                                                     </td>
-                                                    <td className="px-4 py-4 text-center">
+                                                    <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
                                                         <div className="inline-flex px-3 py-1 bg-[#0df259]/10 text-[#0df259] rounded-lg font-black text-xs">
                                                             {p.matchesPlayed > 0 ? (p.totalRating / p.matchesPlayed).toFixed(1) : '—'}
                                                         </div>
@@ -502,10 +502,30 @@ export const GlobalStatsView: React.FC<GlobalStatsViewProps> = ({ teamId, teamNa
                         {includedMatches.map(m => (
                             <div key={m.id} onClick={() => onLoadMatch(m.id)} className="bg-white/5 border border-white/5 rounded-2xl p-4 cursor-pointer hover:border-[#0df259]/30 hover:bg-white/[0.07] transition-all group">
                                 <div className="flex justify-between items-start mb-2">
-                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">{new Date(m.date).toLocaleDateString()}</span>
-                                    <div className={`text-xs font-black px-2 py-0.5 rounded ${m.homeScore > m.awayScore ? 'bg-[#0df259]/10 text-[#0df259]' : 'bg-red-500/10 text-red-500'}`}>
-                                        {m.homeScore}:{m.awayScore}
-                                    </div>
+                                    <span className="text-[10px] font-black text-slate-600 uppercase tracking-tighter">
+                                        {new Date(m.date).toLocaleDateString()}
+                                        {m.round && ` · ${m.round}`}
+                                    </span>
+                                    {(() => {
+                                        // Use explicit flag if available, otherwise fallback to name comparison
+                                        const isHome = m.isOurTeamHome !== undefined ? m.isOurTeamHome : (m.homeTeam === teamName);
+                                        const isAway = m.isOurTeamHome !== undefined ? !m.isOurTeamHome : (m.awayTeam === teamName);
+                                        
+                                        let bgColor = 'bg-slate-700/50 text-slate-300';
+                                        if (m.homeScore === m.awayScore) {
+                                            bgColor = 'bg-orange-500/10 text-orange-500';
+                                        } else if ((isHome && m.homeScore > m.awayScore) || (isAway && m.awayScore > m.homeScore)) {
+                                            bgColor = 'bg-[#0df259]/10 text-[#0df259]';
+                                        } else if ((isHome && m.homeScore < m.awayScore) || (isAway && m.awayScore < m.homeScore)) {
+                                            bgColor = 'bg-red-500/10 text-red-500';
+                                        }
+
+                                        return (
+                                            <div className={`text-xs font-black px-2 py-0.5 rounded ${bgColor}`}>
+                                                {m.homeScore}:{m.awayScore}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                                 <p className="text-xs font-bold text-white truncate group-hover:text-[#0df259] transition-colors">{m.homeTeam} vs {m.awayTeam}</p>
                             </div>

@@ -204,29 +204,29 @@ export const PublicMatchViewer: React.FC = () => {
                     <div className="absolute top-0 right-0 w-96 h-96 bg-[#0df259]/10 blur-[120px] -mr-48 -mt-48" />
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] -ml-32 -mb-32" />
 
-                    <div className="relative p-6 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-8 text-center md:text-left">
-                        <div className="flex-1 flex flex-col items-center md:items-end gap-3 md:gap-4 w-full">
-                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
+                    <div className="relative p-4 md:p-12 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 text-center md:text-left">
+                        <div className="flex-1 flex flex-col items-center md:items-end gap-2 md:gap-4 w-full">
+                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-12 h-12 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
                             <div className="md:text-right">
-                                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black truncate max-w-[200px] sm:max-w-none">{matchData.metadata.homeTeam}</h2>
-                                <p className="text-[#0df259] font-bold text-[10px] md:text-sm tracking-widest uppercase">Local</p>
+                                <h2 className="text-xl sm:text-3xl md:text-5xl font-black truncate max-w-[180px] sm:max-w-none">{matchData.metadata.homeTeam}</h2>
+                                <p className="text-[#0df259] font-bold text-[8px] md:text-sm tracking-widest uppercase">Local</p>
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-center gap-2">
-                            <div className="flex items-center gap-4 md:gap-6 font-black text-5xl sm:text-6xl md:text-8xl tabular-nums">
+                        <div className="flex flex-col items-center gap-1 md:gap-2">
+                            <div className="flex items-center gap-3 md:gap-6 font-black text-4xl sm:text-6xl md:text-8xl tabular-nums leading-none">
                                 <span className={matchData.homeScore > matchData.awayScore ? "text-[#0df259]" : "text-white"}>{matchData.homeScore}</span>
                                 <span className="text-slate-800">:</span>
                                 <span className={matchData.awayScore > matchData.homeScore ? "text-[#0df259]" : "text-white text-opacity-80"}>{matchData.awayScore}</span>
                             </div>
-                            <div className="px-3 py-1 bg-white/5 rounded-full border border-white/5 text-[10px] font-mono text-slate-500 uppercase">FINALIZADO</div>
+                            <div className="px-2 py-0.5 bg-white/5 rounded-full border border-white/5 text-[8px] font-mono text-slate-500 uppercase">FINALIZADO</div>
                         </div>
 
-                        <div className="flex-1 flex flex-col items-center md:items-start gap-3 md:gap-4 w-full">
-                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-16 h-16 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
+                        <div className="flex-1 flex flex-col items-center md:items-start gap-2 md:gap-4 w-full">
+                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-12 h-12 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
                             <div>
-                                <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-white/80 truncate max-w-[200px] sm:max-w-none">{matchData.metadata.awayTeam}</h2>
-                                <p className="text-slate-500 font-bold text-[10px] md:text-sm tracking-widest uppercase">Visitante</p>
+                                <h2 className="text-xl sm:text-3xl md:text-5xl font-black text-white/80 truncate max-w-[180px] sm:max-w-none">{matchData.metadata.awayTeam}</h2>
+                                <p className="text-slate-500 font-bold text-[8px] md:text-sm tracking-widest uppercase">Visitante</p>
                             </div>
                         </div>
                     </div>
@@ -243,8 +243,11 @@ export const PublicMatchViewer: React.FC = () => {
                         </div>
                         <div className="w-px h-6 md:h-8 bg-white/5 hidden sm:block" />
                         <div className="flex flex-col items-center">
-                            <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Fecha</span>
-                            <span className="text-xs md:text-sm font-bold">{matchData.metadata.date || 'N/A'}</span>
+                            <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Dato</span>
+                            <span className="text-xs md:text-sm font-bold">
+                                {new Date(matchData.metadata.date).toLocaleDateString()}
+                                {matchData.metadata.round && ` - ${matchData.metadata.round.toString().toLowerCase().includes('j') ? matchData.metadata.round : 'Jornada ' + matchData.metadata.round}`}
+                            </span>
                         </div>
                     </div>
                 </section>
@@ -336,13 +339,13 @@ export const PublicMatchViewer: React.FC = () => {
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead>
-                                            <tr className="bg-white/5 text-slate-500 text-[10px] font-black uppercase tracking-widest">
-                                                <th className="px-6 py-5 text-left font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('number')}>Jugador</th>
-                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('goals')}>G / T</th>
-                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('percentage')}>%</th>
-                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('assists')}>Asist</th>
-                                                <th className="px-4 py-5 text-center font-bold text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('turnovers')}>Pér</th>
-                                                <th className="px-4 py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('rating')}>Val</th>
+                                            <tr className="bg-white/5 text-slate-500 text-[9px] sm:text-[10px] font-black uppercase tracking-wider sm:tracking-widest">
+                                                <th className="px-3 sm:px-6 py-3 sm:py-5 text-left font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('number')}>Jugador</th>
+                                                <th className="px-2 sm:px-4 py-3 sm:py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('goals')}>G / T</th>
+                                                <th className="px-2 sm:px-4 py-3 sm:py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('percentage')}>%</th>
+                                                <th className="px-2 sm:px-4 py-3 sm:py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('assists')}>Asist</th>
+                                                <th className="px-2 sm:px-4 py-3 sm:py-5 text-center font-bold text-orange-400 cursor-pointer hover:text-orange-300 transition-colors" onClick={() => handleHeaderClick('turnovers')}>Pér</th>
+                                                <th className="px-2 sm:px-4 py-3 sm:py-5 text-center font-bold cursor-pointer hover:text-white transition-colors" onClick={() => handleHeaderClick('rating')}>Val</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-white/5">
@@ -350,22 +353,22 @@ export const PublicMatchViewer: React.FC = () => {
                                                 const s = playerStatsMap.get(p.id);
                                                 return (
                                                     <tr key={p.id} className="hover:bg-[#151515] transition-colors group cursor-pointer" onClick={() => setSelectedPlayerId(p.id)}>
-                                                        <td className="px-6 py-4">
-                                                            <div className="flex items-center gap-3">
-                                                                <span className="w-8 h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center font-black text-xs text-slate-400 group-hover:border-[#0df259]/30 transition-colors">{p.number}</span>
-                                                                <span className="font-bold tracking-tight group-hover:text-[#0df259] transition-colors">{p.name}</span>
+                                                        <td className="px-3 sm:px-6 py-2 sm:py-4">
+                                                            <div className="flex items-center gap-2 sm:gap-3">
+                                                                <span className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg bg-white/5 border border-white/5 flex items-center justify-center font-black text-[10px] sm:text-xs text-slate-400 group-hover:border-[#0df259]/30 transition-colors">{p.number}</span>
+                                                                <span className="font-bold tracking-tight text-xs sm:text-base group-hover:text-[#0df259] transition-colors truncate max-w-[80px] sm:max-w-none">{p.name}</span>
                                                             </div>
                                                         </td>
-                                                        <td className="px-4 py-4 text-center font-black">{s?.goals} <span className="text-slate-700 mx-1">/</span> {s?.totalShots}</td>
-                                                        <td className="px-4 py-4 text-center">
-                                                            <span className={`font-bold ${s?.percentage >= 70 ? 'text-[#0df259]' : s?.percentage >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-4 text-center font-black text-xs sm:text-base whitespace-nowrap">{s?.goals} <span className="text-slate-700 mx-0.5">/</span> {s?.totalShots}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
+                                                            <span className={`font-bold text-xs sm:text-base ${s?.percentage >= 70 ? 'text-[#0df259]' : s?.percentage >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
                                                                 {s?.percentage}%
                                                             </span>
                                                         </td>
-                                                        <td className="px-4 py-4 text-center text-slate-400 font-bold">{s?.assists || '—'}</td>
-                                                        <td className="px-4 py-4 text-center text-orange-400/80 font-bold">{s?.turnovers || '—'}</td>
-                                                        <td className="px-4 py-4 text-center">
-                                                            <div className={`inline-flex px-2 py-0.5 rounded font-black text-[10px] ${s?.rating >= 10 ? 'bg-[#0df259]/10 text-[#0df259]' : 'bg-white/5 text-slate-500'}`}>{s?.rating}</div>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-4 text-center text-slate-400 font-bold text-xs sm:text-base">{s?.assists || '—'}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-4 text-center text-orange-400/80 font-bold text-xs sm:text-base">{s?.turnovers || '—'}</td>
+                                                        <td className="px-2 sm:px-4 py-2 sm:py-4 text-center">
+                                                            <div className={`inline-flex px-1.5 py-0.5 rounded font-black text-[9px] sm:text-[10px] ${s?.rating >= 10 ? 'bg-[#0df259]/10 text-[#0df259]' : 'bg-white/5 text-slate-500'}`}>{s?.rating}</div>
                                                         </td>
                                                     </tr>
                                                 );
@@ -508,7 +511,7 @@ export const PublicMatchViewer: React.FC = () => {
                             )}
 
                             {activeTab === 'GOALKEEPERS' && (
-                                <div className="p-8 space-y-8">
+                                <div className="p-4 sm:p-8 space-y-6 sm:space-y-8">
                                     {matchData.players.filter(p => p.position === Position.GK).map((gk, i) => {
                                         const allGkEvents = matchData.events.filter(e => e.type === 'OPPONENT_SHOT' && e.playerId === gk.id);
                                         const saves = allGkEvents.filter(e => e.shotOutcome === ShotOutcome.SAVE).length;
@@ -524,23 +527,32 @@ export const PublicMatchViewer: React.FC = () => {
                                         });
 
                                         return (
-                                            <div key={gk.id} className="space-y-6">
-                                                <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                                            <div key={gk.id} className="bg-white/5 rounded-[32px] overflow-hidden border border-white/5">
+                                                <div className="p-5 sm:p-8 flex items-center justify-between border-b border-white/5">
                                                     <div>
-                                                        <h3 className="text-xl font-black">Portero: {gk.name}</h3>
-                                                        <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Dorsal #{gk.number}</p>
+                                                        <h3 className="text-xl font-black">{gk.name}</h3>
+                                                        <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Dorsal #{gk.number}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className="text-3xl font-black text-blue-400">{pct}%</p>
-                                                        <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">{saves} Paradas de {total}</p>
+                                                        <div className="flex items-baseline gap-1 justify-end">
+                                                            <span className="text-3xl font-black text-blue-400">{pct}</span>
+                                                            <span className="text-xs font-black text-blue-400/50">%</span>
+                                                        </div>
+                                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{saves}/{total} Paradas</p>
                                                     </div>
                                                 </div>
-                                                <div className="bg-white/5 rounded-3xl p-8 flex justify-center">
-                                                    <GoalStatsSVG stats={placementStats} />
+                                                <div className="p-4 sm:p-10 flex justify-center bg-black/20">
+                                                    <GoalStatsSVG stats={placementStats} showContainer={false} />
                                                 </div>
                                             </div>
                                         );
                                     })}
+                                    {matchData.players.filter(p => p.position === Position.GK).length === 0 && (
+                                        <div className="py-20 text-center">
+                                            <Users size={48} className="mx-auto text-slate-700 mb-4 opacity-20" />
+                                            <p className="text-slate-500 italic">No hay estadísticas de portería en este partido.</p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 

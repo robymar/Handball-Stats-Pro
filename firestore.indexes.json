@@ -1,25 +1,43 @@
 {
-    "indexes": [
+    "indexes": [],
+    "fieldOverrides": [
         {
-            "collectionGroup": "matches",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
+            "collectionGroup": "teams",
+            "fieldPath": "shareCode",
+            "indexes": [
                 {
-                    "fieldPath": "id",
-                    "order": "ASCENDING"
+                    "order": "ASCENDING",
+                    "queryScope": "COLLECTION_GROUP"
+                },
+                {
+                    "order": "DESCENDING",
+                    "queryScope": "COLLECTION_GROUP"
+                }
+            ]
+        },
+        {
+            "collectionGroup": "teams",
+            "fieldPath": "sharedUids",
+            "indexes": [
+                {
+                    "arrayConfig": "CONTAINS",
+                    "queryScope": "COLLECTION_GROUP"
                 }
             ]
         },
         {
             "collectionGroup": "matches",
-            "queryScope": "COLLECTION_GROUP",
-            "fields": [
+            "fieldPath": "ownerTeamId",
+            "indexes": [
                 {
-                    "fieldPath": "ownerTeamId",
-                    "order": "ASCENDING"
+                    "order": "ASCENDING",
+                    "queryScope": "COLLECTION_GROUP"
+                },
+                {
+                    "order": "DESCENDING",
+                    "queryScope": "COLLECTION_GROUP"
                 }
             ]
         }
-    ],
-    "fieldOverrides": []
+    ]
 }

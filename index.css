@@ -57,11 +57,17 @@ body {
 }
 
 /* Scroll táctil suave para todos los contenedores con scroll */
-.overflow-auto,
-.overflow-y-auto,
-.overflow-x-auto {
+.overflow-auto {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 /* Ocultar scrollbar pero mantener funcionalidad SOLAMENTE donde explícitamente se pida */
