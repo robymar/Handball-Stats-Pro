@@ -21,8 +21,6 @@ body {
 /* Reset y configuración base */
 * {
   -webkit-tap-highlight-color: transparent;
-  /* Eliminar delay de 300ms en touch */
-  touch-action: manipulation;
 }
 
 /* Mejorar respuesta táctil en botones y elementos interactivos */
@@ -376,10 +374,6 @@ donde sea necesario */ .gpu-accelerate {
 }
 
 /* Mejorar rendimiento táctil con passive event listeners hint */
-* {
-  /* Hint para el browser de usar passive listeners */
-  -ms-touch-action: manipulation;
-}
 
 /* Prevenir lag en scroll con overscroll-behavior */
 .overflow-y-auto,

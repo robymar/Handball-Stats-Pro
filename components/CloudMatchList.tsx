@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth } from '../services/firebase.ts';
 import { onAuthStateChanged } from 'firebase/auth';
 
-export const CloudMatchList: React.FC = () => {
+export const CloudMatchList: React.FC<{ onBack?: () => void }> = ({ onBack }) => {
     const [matches, setMatches] = useState<MatchSummary[]>([]);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'LIST' | 'GLOBAL_STATS'>('LIST');
@@ -22,6 +22,7 @@ export const CloudMatchList: React.FC = () => {
         return active ? active.id : 'ALL';
     });
     const navigate = useNavigate();
+    const goBack = () => onBack ? onBack() : navigate(-1 as any);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -122,7 +123,7 @@ export const CloudMatchList: React.FC = () => {
                     Identificarse
                 </button>
                 <button
-                    onClick={() => navigate('/')}
+                    onClick={goBack}
                     className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors"
                 >
                     <ArrowLeft size={16} />
@@ -171,7 +172,7 @@ export const CloudMatchList: React.FC = () => {
                 <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                            <button onClick={() => navigate('/')} className="p-2 text-slate-500 hover:text-white transition-colors">
+                            <button onClick={goBack} className="p-2 text-slate-500 hover:text-white transition-colors rounded-xl hover:bg-white/5">
                                 <ArrowLeft size={24} />
                             </button>
                             <div>

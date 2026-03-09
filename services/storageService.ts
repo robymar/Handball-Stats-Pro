@@ -305,20 +305,50 @@ export const getMatchFromFirebase = async (id: string): Promise<MatchState | nul
   }
 };
 
-// This function seems to be intended for getting a list of matches from the cloud
-// Adapted to query the subcollection 'matches' of the current user
 export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
   if (!auth.currentUser) return [];
   try {
     const user = auth.currentUser;
+    const allMatchDocs: QueryDocumentSnapshot[] = [];
 
-    // Query directly from the user's own matches subcollection — no index required
-    const matchesRef = collection(db, 'users', user.uid, 'matches');
-    const querySnapshot = await getDocs(matchesRef);
+    // 1. My own matches
+    const mySnap = await getDocs(collection(db, 'users', user.uid, 'matches'));
+    mySnap.forEach(d => allMatchDocs.push(d));
 
-    const matches = querySnapshot.docs.map((d: QueryDocumentSnapshot) => {
+    // 2. Shared team matches — use local team cache to avoid collectionGroup index requirement
+    const localTeams = getTeams();
+    const sharedTeams = localTeams.filter(t => t.ownerUid && t.ownerUid !== user.uid);
+    const ownerUidsVisited = new Set<string>();
+
+    for (const team of sharedTeams) {
+      const ownerUid = team.ownerUid!;
+      if (ownerUidsVisited.has(ownerUid)) continue;
+      ownerUidsVisited.add(ownerUid);
+      try {
+        // Download ALL matches from that owner — filter locally (avoids need for composite index)
+        const ownerSnap = await getDocs(collection(db, 'users', ownerUid, 'matches'));
+        const mySharedTeamIds = new Set(sharedTeams.filter(t => t.ownerUid === ownerUid).map(t => t.id));
+        ownerSnap.forEach(d => {
+          const data = d.data();
+          const matchTeamId = data.ownerTeamId || data.teamId || data.matchData?.metadata?.ownerTeamId;
+          // Only include if it belongs to one of our shared teams from this owner
+          if (!matchTeamId || mySharedTeamIds.has(matchTeamId)) {
+            allMatchDocs.push(d);
+          }
+        });
+      } catch (err) {
+        console.warn(`Could not fetch matches for owner ${ownerUid}:`, err);
+      }
+    }
+
+    // Deduplicate and map to MatchSummary
+    const seen = new Set<string>();
+    const matches: MatchSummary[] = [];
+    for (const d of allMatchDocs) {
+      if (seen.has(d.id)) continue;
+      seen.add(d.id);
       const data = d.data();
-      return {
+      matches.push({
         id: d.id,
         date: data.date || data.matchData?.metadata?.date || new Date().toISOString(),
         homeTeam: data.homeTeam || data.matchData?.metadata?.homeTeam || '?',
@@ -332,13 +362,12 @@ export const getMatchListFromFirebase = async (): Promise<MatchSummary[]> => {
         homeTeamLogo: data.homeTeamLogo || data.matchData?.metadata?.homeTeamLogo,
         awayTeamLogo: data.awayTeamLogo || data.matchData?.metadata?.awayTeamLogo,
         ownerTeamId: data.ownerTeamId || data.teamId || data.matchData?.metadata?.ownerTeamId
-      };
-    });
+      });
+    }
 
     return matches.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
   } catch (e) {
-    console.error("Exception fetching match list:", e);
+    console.error('Exception fetching match list:', e);
     return [];
   }
 };
@@ -347,28 +376,53 @@ export const getAllMatchesFullFromFirebase = async (): Promise<MatchState[]> => 
   if (!auth.currentUser) return [];
   try {
     const user = auth.currentUser;
+    const allResults: MatchState[] = [];
+    const seenIds = new Set<string>();
 
-    // Query directly from the user's own matches subcollection
-    const matchesRef = collection(db, 'users', user.uid, 'matches');
-    const querySnapshot = await getDocs(matchesRef);
-
-    const results: MatchState[] = [];
-    querySnapshot.forEach((d) => {
+    const processDoc = (d: QueryDocumentSnapshot, sharedTeamIds?: Set<string>) => {
+      if (seenIds.has(d.id)) return;
       const data = d.data();
+      // If we have a filter set, check that the match belongs to a shared team
+      if (sharedTeamIds) {
+        const matchTeamId = data.ownerTeamId || data.teamId || data.matchData?.metadata?.ownerTeamId;
+        if (matchTeamId && !sharedTeamIds.has(matchTeamId)) return;
+      }
+      seenIds.add(d.id);
       const state = (data.matchData || data) as MatchState;
       if (state.metadata) {
         state.metadata.id = d.id;
-        // Fix for old matches that don't have ownerTeamId inside metadata
         if (!state.metadata.ownerTeamId) {
           state.metadata.ownerTeamId = data.ownerTeamId || data.teamId || null;
         }
-        results.push(state);
+        allResults.push(state);
       }
-    });
+    };
 
-    return results.sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
+    // 1. My own matches
+    const mySnap = await getDocs(collection(db, 'users', user.uid, 'matches'));
+    mySnap.forEach(d => processDoc(d));
+
+    // 2. Shared team matches — use local team cache to avoid collectionGroup index requirement
+    const localTeams = getTeams();
+    const sharedTeams = localTeams.filter(t => t.ownerUid && t.ownerUid !== user.uid);
+    const ownerUidsVisited = new Set<string>();
+
+    for (const team of sharedTeams) {
+      const ownerUid = team.ownerUid!;
+      if (ownerUidsVisited.has(ownerUid)) continue;
+      ownerUidsVisited.add(ownerUid);
+      try {
+        const mySharedTeamIds = new Set(sharedTeams.filter(t => t.ownerUid === ownerUid).map(t => t.id));
+        const ownerSnap = await getDocs(collection(db, 'users', ownerUid, 'matches'));
+        ownerSnap.forEach(d => processDoc(d, mySharedTeamIds));
+      } catch (err) {
+        console.warn(`Could not fetch full matches for owner ${ownerUid}:`, err);
+      }
+    }
+
+    return allResults.sort((a, b) => new Date(b.metadata.date).getTime() - new Date(a.metadata.date).getTime());
   } catch (e) {
-    console.error("Exception fetching full matches:", e);
+    console.error('Exception fetching full matches:', e);
     return [];
   }
 };

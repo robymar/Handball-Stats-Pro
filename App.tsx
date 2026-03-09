@@ -3862,6 +3862,19 @@ function MainDashboard() {
         }
     }, [rosterTab, state.players, benchOpponentPlayers, state.metadata.isOurTeamHome]);
 
+    const staffSanctionEndOptions = useMemo(() => {
+        if (!pendingStaffSanctionSacrificeId) return currentRosterBench;
+        const p = state.players.find(x => x.id === pendingStaffSanctionSacrificeId);
+        // Include the sacrificed player if they are active (on field) and NOT disqualified
+        if (p && p.active && !isPlayerDisqualified(p.id, state.events)) {
+            // Prevent duplicates
+            if (!currentRosterBench.some(b => b.id === p.id)) {
+                return [...currentRosterBench, p].sort((a, b) => a.number - b.number);
+            }
+        }
+        return currentRosterBench;
+    }, [currentRosterBench, pendingStaffSanctionSacrificeId, state.players, state.events]);
+
     const sanctionEndOptions = useMemo(() => {
         if (!sanctionEndedPlayerId) return benchPlayers;
         const p = state.players.find(x => x.id === sanctionEndedPlayerId);
@@ -4489,7 +4502,7 @@ function MainDashboard() {
     }
 
     if (view === 'CLOUD') {
-        return <CloudMatchList />;
+        return <CloudMatchList onBack={() => setView('INFO')} />;
     }
 
     if (view === 'INFO') {
@@ -4737,7 +4750,7 @@ function MainDashboard() {
                     {mode === InputMode.SELECT_PLAYER_FOR_SANCTION && renderModal('Jugador Sancionado', renderPlayerGrid(currentRosterActive, handlePlayerSelect))}
                     {mode === InputMode.SELECT_SANCTION_DURATION && renderModal('Duración', renderOptionGrid(['0', '2'], handleSanctionDurationSelect))}
                     {mode === InputMode.SELECT_PLAYER_TO_SACRIFICE && renderModal('¿Quién sale del campo?', renderPlayerGrid(activeFieldPlayers, handleSacrificeSelect))}
-                    {mode === InputMode.SELECT_PLAYER_TO_ENTER_AFTER_STAFF_SANCTION && renderModal('Fin Sanción Técnico: ¿Quién entra?', renderPlayerGrid(currentRosterBench, handlePlayerEnterAfterStaffSanction))}
+                    {mode === InputMode.SELECT_PLAYER_TO_ENTER_AFTER_STAFF_SANCTION && renderModal('Fin Sanción Técnico: ¿Quién entra?', renderPlayerGrid(staffSanctionEndOptions, handlePlayerEnterAfterStaffSanction))}
 
                     {/* Declarative Sanction Modal - Shows whenever ID is set, ignoring Mode */}
                     {sanctionEndedPlayerId && renderModal('Fin Sanción: ¿Quién entra?', renderPlayerGrid(sanctionEndOptions, handlePlayerEnterAfterSanction))}
