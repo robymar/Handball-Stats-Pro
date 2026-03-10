@@ -6,13 +6,14 @@ import { getPlayingTimeForPeriod } from '../utils/matchUtils.ts';
 import { GoalStatsSVG } from './GoalStatsSVG.tsx';
 import { PlayerDetailView } from './PlayerDetailView.tsx';
 import { ErrorBoundary } from './ErrorBoundary.tsx';
-import { Download, Target, Zap, AlertTriangle, Clock, Star, ChevronUp, ChevronDown, TrendingUp, Shield } from 'lucide-react';
+import { Download, Target, Zap, AlertTriangle, Clock, Star, ChevronUp, ChevronDown, TrendingUp, Shield, Globe } from 'lucide-react';
 
 interface StatsViewProps {
     state: MatchState;
     onExportToExcel: () => void;
     onExportToTemplate: (file: File) => void;
     readOnly?: boolean;
+    onViewOnWeb?: () => void;
 }
 
 type StatsTab = 'GENERAL' | 'SHOOTING' | 'PLACEMENT' | 'POSITIVE' | 'TURNOVERS' | 'RIVAL';
@@ -26,7 +27,7 @@ const Bar = ({ value, max, color = 'bg-blue-500' }: { value: number; max: number
     </div>
 );
 
-export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, onExportToTemplate, readOnly = false }) => {
+export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, onExportToTemplate, readOnly = false, onViewOnWeb }) => {
     const [periodFilter, setPeriodFilter] = useState<'ALL' | number>('ALL');
     const [statsTab, setStatsTab] = useState<StatsTab>('GENERAL');
     const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
@@ -186,9 +187,9 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
     );
 
     return (
-        <div className="flex flex-col min-h-full bg-slate-900">
-            {/* ── HEADER TOOLBAR ── */}
-            <div className="shrink-0 border-b border-slate-800 bg-slate-900/80 backdrop-blur px-3 pt-3 pb-2 space-y-2">
+        <div className="bg-slate-900 min-h-full">
+            {/* ── HEADER TOOLBAR ── sticky so it stays visible while scrolling */}
+            <div className="sticky top-0 z-10 border-b border-slate-800 bg-slate-900 px-3 pt-3 pb-2 space-y-2">
                 <div className="flex items-center justify-between gap-2">
                     <div className="flex gap-1 bg-slate-800 rounded-lg p-0.5 border border-slate-700">
                         <button onClick={() => setPeriodFilter('ALL')} className={`px-2.5 py-1.5 text-[10px] font-black uppercase rounded transition-all ${periodFilter === 'ALL' ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Todo</button>
@@ -196,11 +197,18 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                             <button key={i} onClick={() => setPeriodFilter(i + 1)} className={`px-2.5 py-1.5 text-[10px] font-black uppercase rounded transition-all ${periodFilter === i + 1 ? 'bg-slate-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}>P{i + 1}</button>
                         ))}
                     </div>
-                    {!readOnly && (
-                        <button onClick={onExportToExcel} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors">
-                            <Download size={13} /><span className="hidden sm:inline">Exportar</span>
-                        </button>
-                    )}
+                    <div className="flex items-center gap-1.5">
+                        {onViewOnWeb && (
+                            <button onClick={onViewOnWeb} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600/80 hover:bg-indigo-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors">
+                                <Globe size={13} /><span className="hidden sm:inline">Ver en Web</span>
+                            </button>
+                        )}
+                        {!readOnly && (
+                            <button onClick={onExportToExcel} className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600/80 hover:bg-emerald-600 text-white text-[10px] font-black uppercase rounded-lg transition-colors">
+                                <Download size={13} /><span className="hidden sm:inline">Exportar</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="flex gap-1 overflow-x-auto no-scrollbar">
                     {tabBtn('GENERAL', 'Resumen')}
@@ -212,8 +220,8 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                 </div>
             </div>
 
-            {/* ── CONTENT ── */}
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4 pb-8">
+            {/* ── CONTENT ── no internal scroll; parent (.app-content) handles scrolling */}
+            <div className="p-3 sm:p-4 space-y-4 pb-24">
 
                 {/* ══ GENERAL ══ */}
                 {statsTab === 'GENERAL' && (

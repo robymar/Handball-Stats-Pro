@@ -6,7 +6,7 @@ export default defineConfig({
   define: {
     'process.env': {}
   },
-  base: './', // Importante para rutas relativas en cualquier hosting
+  base: '/', // Rutas absolutas para que funcione el routing en sub-rutas como /match/:id
   build: {
     outDir: 'dist',
   },

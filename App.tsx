@@ -1579,11 +1579,16 @@ function MainDashboard() {
             (state.players.find(p => p.id === e.playerId)?.position === Position.STAFF || state.players.find(p => p.id === e.playerId)?.position === Position.COACH)
         );
         for (const sanction of staffSanctionsWithDuration) {
+            // Check if permanently resolved
+            if (state.resolvedSanctionIds && state.resolvedSanctionIds.includes(sanction.id)) continue;
+
             const { remaining } = getSanctionRemainingTime(sanction, state.gameTime, state.timerSettings.direction, state.currentPeriod, state.config);
             // Use specialized Set for staff sanctions
             if (remaining <= 0 && !processedStaffSanctionIds.current.has(sanction.id)) {
                 // Mark as processed in the specialized Set
                 processedStaffSanctionIds.current.add(sanction.id);
+
+                sanctionEventIdRef.current = sanction.id;
 
                 // Store sacrificed player for the handler to swap if needed (Using State now)
                 if (sanction.sacrificedPlayerId) {
@@ -3646,9 +3651,15 @@ function MainDashboard() {
                 awayScoreSnapshot: s.awayScore
             } as MatchEvent);
 
-            return { ...s, players: newPlayers, events: newEvents };
+            let newResolvedIds = [...(s.resolvedSanctionIds || [])];
+            if (sanctionEventIdRef.current && !newResolvedIds.includes(sanctionEventIdRef.current)) {
+                newResolvedIds.push(sanctionEventIdRef.current);
+            }
+
+            return { ...s, players: newPlayers, events: newEvents, resolvedSanctionIds: newResolvedIds };
         });
 
+        sanctionEventIdRef.current = null;
         setMode(InputMode.IDLE);
         setPendingStaffSanctionSacrificeId(null); // Clean up state
     }
@@ -4571,7 +4582,18 @@ function MainDashboard() {
                     {view === 'MATCH' && renderMatchView()}
                     {view === 'STATS' && (
                         <ErrorBoundary viewName="Stats">
-                            <StatsView state={state} onExportToExcel={handleExportStatsToExcel} onExportToTemplate={handleExportToTemplate} />
+                            <StatsView
+                                state={state}
+                                onExportToExcel={handleExportStatsToExcel}
+                                onExportToTemplate={handleExportToTemplate}
+                                onViewOnWeb={async () => {
+                                    // Ensure the match is saved to Firebase before opening the public URL
+                                    await saveMatch(state);
+                                    const matchId = state.metadata.id;
+                                    const url = `${window.location.origin}/match/${matchId}`;
+                                    window.open(url, '_blank');
+                                }}
+                            />
                         </ErrorBoundary>
                     )}
                     {view === 'TIMELINE' && (

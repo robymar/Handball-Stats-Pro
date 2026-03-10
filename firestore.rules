@@ -33,10 +33,9 @@ service cloud.firestore {
 
     // Collection Group query for matches to support PublicMatchViewer and Shared access
     match /{path=**}/matches/{matchId} {
-      // Anyone can 'get' a specific match for public viewing
+      // Anyone can 'get' or 'list' (query) a specific match for public viewing
       allow get: if true;
-      // Authenticated users can query matches via collectionGroup for shared teams
-      allow list: if request.auth != null;
+      allow list: if true;
     }
 
     // Collection Group query for teams to support 'Join with Code' and sync of shared teams

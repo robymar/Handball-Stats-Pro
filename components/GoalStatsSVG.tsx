@@ -47,9 +47,9 @@ export const GoalStatsSVG: React.FC<GoalStatsSVGProps & { showContainer?: boolea
                 </div>
             )}
 
-            <div className="relative w-full max-w-[500px] aspect-[4/3] sm:aspect-[3/2] bg-slate-900/40 rounded-2xl overflow-hidden border-2 sm:border-4 border-slate-700/50 p-2 sm:p-4">
+            <div className="relative w-full max-w-[500px] aspect-[3/2] bg-slate-800/50 rounded-xl overflow-hidden border-2 border-slate-700 p-4">
                 {/* Goal Frame */}
-                <div className="absolute inset-2 sm:inset-4 border-[6px] sm:border-[10px] border-white border-b-0 flex shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                <div className="absolute inset-2 sm:inset-4 border-[4px] sm:border-[8px] border-white border-b-0 flex">
                     <div className="w-full h-full relative bg-white/5 grid grid-cols-3 grid-rows-3">
                         {/* Net Pattern */}
                         <div className="absolute inset-0 grid grid-cols-12 grid-rows-8 pointer-events-none opacity-[0.03]">
@@ -67,18 +67,18 @@ export const GoalStatsSVG: React.FC<GoalStatsSVGProps & { showContainer?: boolea
                             return (
                                 <div key={zone.id} className="relative flex flex-col items-center justify-center border border-white/5">
                                     {total > 0 ? (
-                                        <div className="flex flex-col items-center bg-slate-950/80 rounded-lg px-1.5 py-1 backdrop-blur-md border border-white/10 min-w-[32px] sm:min-w-[45px]">
-                                            <div className="flex gap-0.5 sm:gap-1 text-sm sm:text-lg font-black leading-none">
+                                        <div className="flex flex-col items-center bg-slate-950/80 rounded-lg px-1.5 py-0.5 sm:py-1 backdrop-blur-md border border-white/10 min-w-[28px] sm:min-w-[40px] scale-90 sm:scale-100">
+                                            <div className="flex gap-0.5 text-xs sm:text-sm md:text-base font-black leading-none">
                                                 <span className="text-green-400">{greenValue}</span>
                                                 <span className="text-white/20">/</span>
                                                 <span className="text-red-500">{redValue}</span>
                                             </div>
-                                            <div className="text-[7px] sm:text-[9px] text-slate-500 font-black mt-0.5">
+                                            <div className="text-[6px] sm:text-[8px] text-slate-500 font-black mt-0.5">
                                                 {Math.round((greenValue / total) * 100)}%
                                             </div>
                                         </div>
                                     ) : (
-                                        <span className="text-white/5 text-xl sm:text-3xl font-black select-none opacity-20">{zone.label}</span>
+                                        <span className="text-white/5 text-lg sm:text-2xl font-black select-none opacity-20">{zone.label}</span>
                                     )}
                                 </div>
                             );
@@ -86,7 +86,7 @@ export const GoalStatsSVG: React.FC<GoalStatsSVGProps & { showContainer?: boolea
                     </div>
                 </div>
                 {/* Floor line */}
-                <div className="absolute bottom-1.5 left-3 right-3 h-1 bg-handball-blue/30 rounded-full blur-[1px]"></div>
+                <div className="absolute bottom-4 left-2 right-2 h-[8px] bg-handball-blue/50 rounded-full"></div>
             </div>
 
             <div className="flex gap-4 sm:gap-8 mt-6 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500">

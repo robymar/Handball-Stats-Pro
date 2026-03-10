@@ -198,40 +198,40 @@ export const PublicMatchViewer: React.FC = () => {
                 </div>
             </header>
 
-            <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+            <main className="max-w-7xl mx-auto px-3 py-3 space-y-4">
                 {/* Scoreboard Hero */}
                 <section className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-slate-900 to-black border border-white/5 shadow-2xl">
                     <div className="absolute top-0 right-0 w-96 h-96 bg-[#0df259]/10 blur-[120px] -mr-48 -mt-48" />
                     <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/10 blur-[100px] -ml-32 -mb-32" />
 
-                    <div className="relative p-4 md:p-12 flex flex-col md:flex-row items-center justify-between gap-4 md:gap-8 text-center md:text-left">
-                        <div className="flex-1 flex flex-col items-center md:items-end gap-2 md:gap-4 w-full">
-                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-12 h-12 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
+                    <div className="relative p-3 md:p-12 flex flex-row items-center justify-between gap-2 md:gap-8 text-center md:text-left">
+                        <div className="flex-1 flex flex-col items-center md:items-end gap-1 md:gap-4 w-full px-1">
+                            {matchData.metadata.homeTeamLogo && <img src={matchData.metadata.homeTeamLogo} className="w-8 h-8 md:w-16 md:h-16 object-contain drop-shadow-2xl" />}
                             <div className="md:text-right">
-                                <h2 className="text-xl sm:text-3xl md:text-5xl font-black truncate max-w-[180px] sm:max-w-none">{matchData.metadata.homeTeam}</h2>
-                                <p className="text-[#0df259] font-bold text-[8px] md:text-sm tracking-widest uppercase">Local</p>
+                                <h2 className="text-[10px] sm:text-sm md:text-lg lg:text-2xl font-black leading-tight break-words" >{matchData.metadata.homeTeam}</h2>
+                                <p className="text-[#0df259] font-bold text-[7px] md:text-xs tracking-widest uppercase mt-1">Local</p>
                             </div>
                         </div>
 
-                        <div className="flex flex-col items-center gap-1 md:gap-2">
-                            <div className="flex items-center gap-3 md:gap-6 font-black text-4xl sm:text-6xl md:text-8xl tabular-nums leading-none">
+                        <div className="flex flex-col items-center gap-0.5 md:gap-2 shrink-0 px-2 lg:px-4">
+                            <div className="flex items-center gap-2 md:gap-4 font-black text-3xl sm:text-5xl md:text-6xl lg:text-7xl tabular-nums leading-none">
                                 <span className={matchData.homeScore > matchData.awayScore ? "text-[#0df259]" : "text-white"}>{matchData.homeScore}</span>
                                 <span className="text-slate-800">:</span>
                                 <span className={matchData.awayScore > matchData.homeScore ? "text-[#0df259]" : "text-white text-opacity-80"}>{matchData.awayScore}</span>
                             </div>
-                            <div className="px-2 py-0.5 bg-white/5 rounded-full border border-white/5 text-[8px] font-mono text-slate-500 uppercase">FINALIZADO</div>
+                            <div className="px-1.5 py-0.5 bg-white/5 rounded-full border border-white/5 text-[7px] md:text-[9px] font-mono text-slate-500 uppercase">FINALIZADO</div>
                         </div>
 
-                        <div className="flex-1 flex flex-col items-center md:items-start gap-2 md:gap-4 w-full">
-                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-12 h-12 md:w-20 md:h-20 object-contain drop-shadow-2xl" />}
+                        <div className="flex-1 flex flex-col items-center md:items-start gap-1 md:gap-4 w-full px-1">
+                            {matchData.metadata.awayTeamLogo && <img src={matchData.metadata.awayTeamLogo} className="w-8 h-8 md:w-16 md:h-16 object-contain drop-shadow-2xl" />}
                             <div>
-                                <h2 className="text-xl sm:text-3xl md:text-5xl font-black text-white/80 truncate max-w-[180px] sm:max-w-none">{matchData.metadata.awayTeam}</h2>
-                                <p className="text-slate-500 font-bold text-[8px] md:text-sm tracking-widest uppercase">Visitante</p>
+                                <h2 className="text-[10px] sm:text-sm md:text-lg lg:text-2xl font-black text-white/80 leading-tight break-words">{matchData.metadata.awayTeam}</h2>
+                                <p className="text-slate-500 font-bold text-[7px] md:text-xs tracking-widest uppercase mt-1">Visitante</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="border-t border-white/5 p-4 md:p-6 bg-black/20 flex flex-wrap justify-center gap-4 md:gap-12">
+                    <div className="border-t border-white/5 p-2 md:p-6 bg-black/20 flex flex-wrap justify-center gap-3 md:gap-12">
                         <div className="flex flex-col items-center">
                             <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-tighter mb-1">Efectividad</span>
                             <span className="text-lg md:text-xl font-bold">{Math.round((matchData.homeScore / (matchData.events.filter(e => !e.isOpponent && e.type === 'SHOT').length || 1)) * 100)}%</span>
@@ -253,38 +253,9 @@ export const PublicMatchViewer: React.FC = () => {
                 </section>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* MVP Card */}
+
                     <div className="lg:col-span-1 space-y-6">
-                        <div className="bg-[#0f0f0f] border border-white/5 rounded-[2rem] p-8 relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-6 opacity-20 group-hover:opacity-100 transition-opacity">
-                                <Trophy className="text-[#0df259]" size={64} />
-                            </div>
-                            <h3 className="text-xs font-black text-[#0df259] uppercase tracking-[0.3em] mb-4">Most Valuable Player</h3>
-                            {mvp ? (
-                                <div className="space-y-6">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-20 h-20 rounded-2xl bg-[#0df259]/10 flex items-center justify-center text-[#0df259] text-4xl font-black">#{mvp.number}</div>
-                                        <div>
-                                            <p className="text-2xl font-black tracking-tight">{mvp.name}</p>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="px-2 py-0.5 bg-white/10 rounded text-[10px] font-bold text-slate-300">{mvp.position}</span>
-                                                <span className="text-[#0df259] text-[10px] font-black tracking-widest uppercase">MVP RATIO: {mvpStats?.rating}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="bg-white/5 p-4 rounded-2xl">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Goles</p>
-                                            <p className="text-2xl font-black">{mvpStats?.goals} / {mvpStats?.totalShots}</p>
-                                        </div>
-                                        <div className="bg-white/5 p-4 rounded-2xl">
-                                            <p className="text-[10px] text-slate-500 font-bold uppercase mb-1">Aciertos</p>
-                                            <p className="text-2xl font-black">{mvpStats?.positiveActions}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            ) : <p className="text-slate-500 italic">No hay datos suficientes</p>}
-                        </div>
+
 
                         {/* Quick Insights */}
                         <div className="bg-white/5 rounded-[2rem] p-6 border border-white/10">
@@ -541,7 +512,7 @@ export const PublicMatchViewer: React.FC = () => {
                                                         <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{saves}/{total} Paradas</p>
                                                     </div>
                                                 </div>
-                                                <div className="p-4 sm:p-10 flex justify-center bg-black/20">
+                                                <div className="p-4 sm:p-10 flex flex-col items-center justify-center bg-black/20">
                                                     <GoalStatsSVG stats={placementStats} showContainer={false} />
                                                 </div>
                                             </div>
