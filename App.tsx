@@ -738,8 +738,8 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                                                             </div>
                                                             <div className="flex items-center gap-1 ml-1">
                                                                 <button
-                                                                    onClick={(e) => { 
-                                                                        e.stopPropagation(); 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
                                                                         navigator.clipboard.writeText(team.shareCode || '');
                                                                         alert("Código copiado al portapapeles");
                                                                     }}
@@ -774,8 +774,8 @@ const TeamSelectView: React.FC<TeamSelectViewProps> = (props) => {
                                         {isOwner && (
                                             <div className="absolute top-2 right-2 flex gap-0.5 items-center">
                                                 <button
-                                                    onClick={(e) => { 
-                                                        e.stopPropagation(); 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
                                                         setTeamToEdit(team);
                                                         setNewName(team.name);
                                                         setNewCategory(team.category);
@@ -1334,7 +1334,7 @@ const InfoView: React.FC<InfoViewProps> = ({
                                         {(() => {
                                             const isHome = m.isOurTeamHome !== undefined ? m.isOurTeamHome : (m.homeTeam === currentMatchMetadata.homeTeam);
                                             const isAway = m.isOurTeamHome !== undefined ? !m.isOurTeamHome : (m.awayTeam === currentMatchMetadata.homeTeam);
-                                            
+
                                             let textColor = 'text-handball-orange'; // Draw/Neutral
                                             if ((isHome && m.homeScore > m.awayScore) || (isAway && m.awayScore > m.homeScore)) {
                                                 textColor = 'text-green-400';
