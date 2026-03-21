@@ -520,7 +520,45 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
 
                 {/* ══ RIVAL ══ */}
                 {statsTab === 'RIVAL' && (
-                    <div className="space-y-3">
+                    <div className="space-y-6">
+                        {/* PORTERÍA RIVAL */}
+                        {(() => {
+                            const rivalGkEvents = filteredEvents.filter(e => e.type === 'SHOT' && !e.isOpponent && (e.shotOutcome === ShotOutcome.SAVE || e.shotOutcome === ShotOutcome.GOAL) && e.shotPlacement);
+                            const realSaves = rivalGkEvents.filter(e => e.shotOutcome === ShotOutcome.SAVE).length;
+                            const realGoals = rivalGkEvents.filter(e => e.shotOutcome === ShotOutcome.GOAL).length;
+                            const realTotal = realSaves + realGoals;
+                            
+                            if (realTotal === 0) return null;
+
+                            const stats: Partial<Record<ShotPlacement, { goals: number; saves: number }>> = {};
+                            rivalGkEvents.forEach(e => {
+                                if (!e.shotPlacement) return;
+                                if (!stats[e.shotPlacement]) stats[e.shotPlacement] = { goals: 0, saves: 0 };
+                                if (e.shotOutcome === ShotOutcome.GOAL) stats[e.shotPlacement]!.goals++;
+                                else if (e.shotOutcome === ShotOutcome.SAVE) stats[e.shotPlacement]!.saves++;
+                            });
+                            
+                            const shootPct = realTotal > 0 ? Math.round((realGoals / realTotal) * 100) : 0;
+                            
+                            return (
+                                <div className="bg-slate-800 border border-slate-700 rounded-2xl p-3 sm:p-4">
+                                    <div className="flex items-center gap-3 mb-4">
+                                        <div className="w-10 h-10 rounded-xl bg-red-900/50 border border-red-700/50 flex items-center justify-center font-black text-red-300 text-lg">
+                                            <Shield size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="font-black text-white">Portería Rival</div>
+                                            <div className="text-[10px] text-slate-500 flex gap-3">
+                                                <span className={`font-bold ${shootPct >= 50 ? 'text-emerald-400' : 'text-red-400'}`}>{shootPct}% acierto</span>
+                                                <span>{realGoals}G / {realSaves}P</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <GoalStatsSVG stats={stats} title="Portería Rival" playerName="Oponente" totalShots={realTotal} shootingPercent={shootPct} mode="PLAYER" />
+                                </div>
+                            );
+                        })()}
+
                         {/* rival summary chip */}
                         {(genericRivalStats || opponentStatsMap.size > 0) && (() => {
                             const rGoals = genericRivalStats ? genericRivalStats.goals : Array.from(opponentStatsMap.values()).reduce((a, s) => a + s.goals, 0);

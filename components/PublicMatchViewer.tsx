@@ -529,6 +529,52 @@ export const PublicMatchViewer: React.FC = () => {
 
                             {activeTab === 'RIVAL' && (
                                 <div className="p-8 space-y-8">
+                                    {/* PORTERÍA RIVAL */}
+                                    {(() => {
+                                        const rivalGkEvents = matchData.events.filter(e => e.type === 'SHOT' && !e.isOpponent && (e.shotOutcome === ShotOutcome.SAVE || e.shotOutcome === ShotOutcome.GOAL) && e.shotPlacement);
+                                        const realSaves = rivalGkEvents.filter(e => e.shotOutcome === ShotOutcome.SAVE).length;
+                                        const realGoals = rivalGkEvents.filter(e => e.shotOutcome === ShotOutcome.GOAL).length;
+                                        const realTotal = realSaves + realGoals;
+                                        
+                                        if (realTotal === 0) return null;
+
+                                        const stats: Partial<Record<ShotPlacement, { goals: number; saves: number }>> = {};
+                                        rivalGkEvents.forEach(e => {
+                                            if (!e.shotPlacement) return;
+                                            if (!stats[e.shotPlacement]) stats[e.shotPlacement] = { goals: 0, saves: 0 };
+                                            if (e.shotOutcome === ShotOutcome.GOAL) stats[e.shotPlacement]!.goals++;
+                                            else if (e.shotOutcome === ShotOutcome.SAVE) stats[e.shotPlacement]!.saves++;
+                                        });
+                                        
+                                        const shootPct = realTotal > 0 ? Math.round((realGoals / realTotal) * 100) : 0;
+                                        
+                                        return (
+                                            <div className="bg-white/5 rounded-[32px] overflow-hidden border border-red-500/20 shadow-[0_0_30px_rgba(239,68,68,0.1)] mb-8">
+                                                <div className="p-5 sm:p-8 flex items-center justify-between border-b border-white/5 bg-red-950/20">
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-12 h-12 rounded-2xl bg-red-500/20 border border-red-500/30 flex items-center justify-center text-red-400">
+                                                            <ShieldAlert size={24} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 className="text-xl font-black text-white">Portería Rival</h3>
+                                                            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em]">Estadística Global</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="flex items-baseline gap-1 justify-end">
+                                                            <span className={`text-3xl font-black ${shootPct >= 50 ? 'text-[#0df259]' : 'text-red-400'}`}>{shootPct}</span>
+                                                            <span className="text-xs font-black text-slate-500">% acierto</span>
+                                                        </div>
+                                                        <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">{realGoals}G / {realSaves}P</p>
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 sm:p-10 flex flex-col items-center justify-center bg-black/40">
+                                                    <GoalStatsSVG stats={stats} showContainer={false} mode="PLAYER" />
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                         <div className="bg-red-500/10 border border-red-500/20 p-6 rounded-3xl text-center">
                                             <p className="text-3xl font-black text-red-500">{matchData.awayScore}</p>

@@ -3578,14 +3578,18 @@ function MainDashboard() {
     const handleOpponentShotPlacementSelect = (placement: ShotPlacement) => {
         // For both GOAL and SAVE, we want to assign the GK (playerId)
         // If multiple GKs, ask user. If one, auto-assign.
-        state.players.filter(p => p.active && p.position === Position.GK).length > 1
-            ? setMode(InputMode.SELECT_OUR_GK_FOR_SAVE)
-            : recordEvent({
+        if (state.players.filter(p => p.active && p.position === Position.GK).length > 1) {
+            // Save placement into pendingEvent BEFORE switching mode, otherwise it's lost
+            setPendingEvent(prev => ({ ...prev, shotPlacement: placement }));
+            setMode(InputMode.SELECT_OUR_GK_FOR_SAVE);
+        } else {
+            recordEvent({
                 ...pendingEvent,
                 id: generateId(),
                 shotPlacement: placement,
                 playerId: state.players.find(p => p.active && p.position === Position.GK)?.id
             } as any);
+        }
     }
 
     const startTurnoverFlow = () => { setPendingEvent({ type: 'TURNOVER', timestamp: state.gameTime, isOpponent: false }); setMode(InputMode.SELECT_TURNOVER_TYPE); }
