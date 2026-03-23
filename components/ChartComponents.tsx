@@ -221,11 +221,11 @@ export const ScoreDifferenceChart: React.FC<ScoreDiffChartProps> = ({ events, he
 
     sortedEvents.forEach(e => {
         // Update diff
-        if (e.type === 'SHOT' && e.shotOutcome === 'GOAL') {
+        if (e.type === 'SHOT' && !e.isOpponent && (e.shotOutcome === 'GOAL' || e.shotOutcome === 'Gol')) {
             // We scored
             currentDiff += 1;
             points.push({ time: e.timestamp, diff: currentDiff });
-        } else if (e.type === 'OPPONENT_GOAL') {
+        } else if (e.type === 'OPPONENT_GOAL' || ((e.type === 'OPPONENT_SHOT' || (e.type === 'SHOT' && e.isOpponent)) && (e.shotOutcome === 'GOAL' || e.shotOutcome === 'Gol'))) {
             // Opponent scored
             currentDiff -= 1;
             points.push({ time: e.timestamp, diff: currentDiff });
@@ -268,6 +268,12 @@ export const ScoreDifferenceChart: React.FC<ScoreDiffChartProps> = ({ events, he
     // Zero Line (Where diff = 0)
     const zeroY = getCoord(0, 0).y;
 
+    // 5-Minute Markers (300 seconds)
+    const fiveMinIntervals = [];
+    for (let t = 300; t <= maxTime; t += 300) {
+        fiveMinIntervals.push(t);
+    }
+
     // Build Path
     let dPath = '';
     points.forEach((p, i) => {
@@ -299,8 +305,43 @@ export const ScoreDifferenceChart: React.FC<ScoreDiffChartProps> = ({ events, he
                         <span className="text-slate-200">Empate</span>}
             </div>
             <svg viewBox={`0 0 ${width} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none" style={{ height: svgHeight }}>
+                {/* 5-minute Grid Lines */}
+                {fiveMinIntervals.map(t => {
+                    const xTick = getCoord(t, 0).x;
+                    return (
+                        <line 
+                            key={`grid-${t}`} 
+                            x1={xTick} 
+                            y1="0" 
+                            x2={xTick} 
+                            y2={svgHeight} 
+                            stroke="#334155" 
+                            strokeWidth="1"
+                            strokeDasharray="2 4"
+                            vectorEffect="non-scaling-stroke"
+                        />
+                    );
+                })}
+
                 {/* Zero Line */}
                 <line x1="0" y1={zeroY} x2={width} y2={zeroY} stroke="#475569" strokeWidth="1" strokeDasharray="4 4" />
+
+                {/* 5-minute Ticks on the Zero Line */}
+                {fiveMinIntervals.map(t => {
+                    const xTick = getCoord(t, 0).x;
+                    return (
+                        <line 
+                            key={`tick-${t}`} 
+                            x1={xTick} 
+                            y1={zeroY - 5} 
+                            x2={xTick} 
+                            y2={zeroY + 5} 
+                            stroke="#94a3b8" 
+                            strokeWidth="2"
+                            vectorEffect="non-scaling-stroke"
+                        />
+                    );
+                })}
 
                 {/* Main Path */}
                 <path d={dPath} fill="none" stroke="#3b82f6" strokeWidth="2" vectorEffect="non-scaling-stroke" />
