@@ -220,17 +220,18 @@ export const ScoreDifferenceChart: React.FC<ScoreDiffChartProps> = ({ events, he
     let maxTime = 1;
 
     sortedEvents.forEach(e => {
-        // Update diff
+        const ts = Number(e.timestamp);
+        if (isNaN(ts) || ts < 0) return; // Skip corrupt events
         if (e.type === 'SHOT' && !e.isOpponent && (e.shotOutcome === 'GOAL' || e.shotOutcome === 'Gol')) {
             // We scored
             currentDiff += 1;
-            points.push({ time: e.timestamp, diff: currentDiff });
+            points.push({ time: ts, diff: currentDiff });
         } else if (e.type === 'OPPONENT_GOAL' || ((e.type === 'OPPONENT_SHOT' || (e.type === 'SHOT' && e.isOpponent)) && (e.shotOutcome === 'GOAL' || e.shotOutcome === 'Gol'))) {
             // Opponent scored
             currentDiff -= 1;
-            points.push({ time: e.timestamp, diff: currentDiff });
+            points.push({ time: ts, diff: currentDiff });
         }
-        maxTime = Math.max(maxTime, e.timestamp);
+        maxTime = Math.min(7200, Math.max(maxTime, ts));
     });
 
     if (points.length <= 1) {

@@ -155,34 +155,30 @@ export const deleteTeam = async (teamId: string): Promise<void> => {
 // --- MATCH MANAGEMENT ---
 
 export const saveMatch = async (state: MatchState, skipSync: boolean = false): Promise<void> => {
-  // 1. Local Save
-  try {
-    localStorage.setItem(`${STORAGE_KEY_PREFIX}${state.metadata.id}`, JSON.stringify(state));
+  // 1. Local Save (must succeed — throw on error so caller knows)
+  localStorage.setItem(`${STORAGE_KEY_PREFIX}${state.metadata.id}`, JSON.stringify(state));
 
-    const indexJson = localStorage.getItem(INDEX_KEY);
-    let index: MatchSummary[] = indexJson ? JSON.parse(indexJson) : [];
+  const indexJson = localStorage.getItem(INDEX_KEY);
+  let index: MatchSummary[] = indexJson ? JSON.parse(indexJson) : [];
 
-    index = index.filter(m => m.id !== state.metadata.id);
+  index = index.filter(m => m.id !== state.metadata.id);
 
-    index.unshift({
-      id: state.metadata.id,
-      ownerTeamId: state.metadata.ownerTeamId,
-      date: state.metadata.date,
-      homeTeam: state.metadata.homeTeam,
-      awayTeam: state.metadata.awayTeam,
-      homeScore: state.homeScore,
-      awayScore: state.awayScore,
-      category: state.metadata.category,
-      round: state.metadata.round,
-      isOurTeamHome: state.metadata.isOurTeamHome,
-    });
+  index.unshift({
+    id: state.metadata.id,
+    ownerTeamId: state.metadata.ownerTeamId,
+    date: state.metadata.date,
+    homeTeam: state.metadata.homeTeam,
+    awayTeam: state.metadata.awayTeam,
+    homeScore: state.homeScore,
+    awayScore: state.awayScore,
+    category: state.metadata.category,
+    round: state.metadata.round,
+    isOurTeamHome: state.metadata.isOurTeamHome,
+  });
 
-    localStorage.setItem(INDEX_KEY, JSON.stringify(index));
-  } catch (e) {
-    console.error("Error saving match locally:", e);
-  }
+  localStorage.setItem(INDEX_KEY, JSON.stringify(index));
 
-  // 2. Cloud Save
+  // 2. Cloud Save (best effort — log on error but don't throw)
   if (!skipSync && auth.currentUser) {
     try {
       const user = auth.currentUser;
@@ -191,7 +187,7 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
         id: state.metadata.id,
         teamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
         ownerTeamId: state.metadata.ownerTeamId || state.metadata.teamId || null,
-        ownerUid: user.uid, // Track who uploaded the match
+        ownerUid: user.uid,
         homeTeam: state.metadata.homeTeam,
         awayTeam: state.metadata.awayTeam,
         homeScore: state.homeScore,
@@ -199,7 +195,7 @@ export const saveMatch = async (state: MatchState, skipSync: boolean = false): P
         date: state.metadata.date,
         location: state.metadata.location,
         category: state.metadata.category || null,
-        matchData: state, // Saving full JSON
+        matchData: state,
         updatedAt: Timestamp.now()
       });
 
@@ -258,13 +254,12 @@ export const deleteMatch = async (id: string): Promise<void> => {
   }
 }
 
-export const importMatchState = (matchData: any): boolean => {
+export const importMatchState = async (matchData: any): Promise<boolean> => {
   try {
     if (!matchData || !matchData.metadata || !matchData.events || !Array.isArray(matchData.players)) {
       return false;
     }
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    saveMatch(matchData as MatchState);
+    await saveMatch(matchData as MatchState);
     return true;
   } catch (e) {
     console.error("Error importing match:", e);

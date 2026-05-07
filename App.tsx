@@ -201,7 +201,7 @@ const recalculateMatchState = (currentState: MatchState): MatchState => {
         ...currentState,
         homeScore: home,
         awayScore: away,
-        events: updatedEvents.reverse()
+        events: [...updatedEvents].reverse()
     };
 };
 
@@ -235,12 +235,14 @@ const recalculatePlayingTimesFromEvents = (s: MatchState): MatchState => {
 
         if (period === 1) {
             const subbedOut = new Set(periodSubs.map(e => e.playerOutId).filter(Boolean) as string[]);
+            const subbedIn = new Set(periodSubs.map(e => e.playerInId).filter(Boolean) as string[]);
             const withP1Events = new Set(
                 s.events
                     .filter(e => (e.period || 1) === 1 && e.playerId && e.type !== 'SUBSTITUTION')
                     .map(e => e.playerId!)
             );
-            onField = new Set([...subbedOut, ...withP1Events].filter(id => isFieldPlayer(id)));
+            // Iniciales en campo: los que salieron (estaban en campo) + los con eventos que no entraron por sustitución
+            onField = new Set([...subbedOut, ...[...withP1Events].filter(id => !subbedIn.has(id))].filter(id => isFieldPlayer(id)));
         }
 
         const entryTime: Record<string, number> = {};
@@ -341,7 +343,9 @@ const getSanctionRemainingTime = (
         }
 
         // Calcular cuánto tiempo se ha cumplido en el periodo actual
-        const timeServedInCurrentPeriod = timerDirection === 'UP' ? gameTime : (periodConfig.regularDuration * 60 - gameTime);
+        const currentPeriodIsOT = currentPeriod > periodConfig.regularPeriods;
+        const currentPeriodDuration = (currentPeriodIsOT ? periodConfig.otDuration : periodConfig.regularDuration) * 60;
+        const timeServedInCurrentPeriod = timerDirection === 'UP' ? gameTime : (currentPeriodDuration - gameTime);
 
         // Tiempo restante = tiempo que faltaba - tiempo servido en periodo actual
         const remainingSeconds = timeRemaining - timeServedInCurrentPeriod;
@@ -2171,7 +2175,7 @@ function MainDashboard() {
                     if (currentTeam) {
                         parsedState.metadata.ownerTeamId = currentTeam.id;
                     }
-                    if (importMatchState(parsedState)) {
+                    if (await importMatchState(parsedState)) {
                         alert("Partido importado desde Excel correctamente.");
                         if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
                     } else {
@@ -2194,7 +2198,7 @@ function MainDashboard() {
                     if (currentTeam) {
                         parsed.metadata.ownerTeamId = currentTeam.id;
                     }
-                    if (importMatchState(parsed)) {
+                    if (await importMatchState(parsed) === true) {
                         alert("Partido importado y asignado al equipo actual.");
                         if (currentTeam) setMatchHistory(getMatchHistory(currentTeam.id));
                     } else {
@@ -3149,12 +3153,32 @@ function MainDashboard() {
                         }
 
                         if (isPeriodFinished) {
-                            // Force sync for all active players to ensure they get the FULL duration
-                            // This fixes the "29:59" issue if delta didn't align perfectly or started late.
-                            // The "29:59" likely comes from manual interventions or missed ticks.
-                            // STRATEGY: If isPeriodFinished, find ACTIVE players and ROUND UP their period time to the nearest second 
-                            // OR simply Ensure they have played the full 'available' minutes if they were active the whole time? 
-                            // Best safest fix: If active at finish, and time is e.g. 29:59, bump to 30:00.
+                            // FIX v1.3.5: Round up active players to FULL period duration to prevent 29:59 bug
+                            // This compensates for setInterval drift, missed ticks, or manual interventions
+                            const isDown = s.timerSettings.direction === 'DOWN';
+                            const targetTime = isDown ? 0 : periodDurationSecs;
+                            const timePlayedByActive = isDown ? s.gameTime : (periodDurationSecs - s.gameTime);
+                            // Only round up if they were active the whole remaining time (within 1 sec tolerance)
+                            if (timePlayedByActive < 1) {
+                                s.players.forEach(p => {
+                                    if (p.active) {
+                                        const diff = periodDurationSecs - (p.playingTimeByPeriod?.[s.currentPeriod] || 0);
+                                        if (diff > 0) {
+                                            p.playingTime = (p.playingTime || 0) + diff;
+                                            p.playingTimeByPeriod = { ...p.playingTimeByPeriod, [s.currentPeriod]: periodDurationSecs };
+                                        }
+                                    }
+                                });
+                                (s.opponentPlayers || []).forEach(p => {
+                                    if (p.active) {
+                                        const diff = periodDurationSecs - (p.playingTimeByPeriod?.[s.currentPeriod] || 0);
+                                        if (diff > 0) {
+                                            p.playingTime = (p.playingTime || 0) + diff;
+                                            p.playingTimeByPeriod = { ...p.playingTimeByPeriod, [s.currentPeriod]: periodDurationSecs };
+                                        }
+                                    }
+                                });
+                            }
                         }
 
                         // We check pause AFTER updating players
@@ -3218,6 +3242,8 @@ function MainDashboard() {
 
 
         let triggerEvent = null;
+        let triggerCount = 0;
+        const MAX_SANCTIONS_PER_CYCLE = 3;
 
         for (const sanc of fieldPlayerSanctions) {
             // Check if already processed OR RESOLVED
@@ -3234,25 +3260,24 @@ function MainDashboard() {
                 state.config
             );
 
-
-
             // Case 1: Standard Expiration (Not processed yet)
             if (!isProcessed && remaining <= 0) {
                 triggerEvent = sanc;
-
-                break;
+                triggerCount++;
+                // Process multiple sanctions up to a daily limit per tick so we don't hog the main thread
+                if (triggerCount >= MAX_SANCTIONS_PER_CYCLE) break;
+                continue;
             }
 
             // Case 2: Recovery (Processed but NOT Resolved)
             if (isProcessed && !isResolved && remaining <= 0) {
                 if (!sanctionEndedPlayerId || sanctionEndedPlayerId === sanc.playerId) {
                     triggerEvent = sanc;
-
-                    break;
+                    triggerCount++;
+                    if (triggerCount >= MAX_SANCTIONS_PER_CYCLE) break;
+                    continue;
                 }
             }
-
-
         }
 
         if (triggerEvent && triggerEvent.playerId) {
@@ -3409,8 +3434,11 @@ function MainDashboard() {
             if (lastEvent.type === 'SUBSTITUTION' && lastEvent.playerInId && lastEvent.playerOutId) {
                 newState.players = newState.players.map(p => p.id === lastEvent.playerInId ? { ...p, active: false } : p.id === lastEvent.playerOutId ? { ...p, active: true } : p);
             }
-            if (lastEvent.type === 'SANCTION' && (lastEvent.sanctionType === SanctionType.RED || lastEvent.sanctionType === SanctionType.BLUE) && lastEvent.playerId) {
+            if (lastEvent.type === 'SANCTION' && (lastEvent.sanctionType === SanctionType.RED || lastEvent.sanctionType === SanctionType.BLUE || lastEvent.sanctionType === SanctionType.TWO_MIN) && lastEvent.playerId) {
                 newState.players = newState.players.map(p => p.id === lastEvent.playerId ? { ...p, active: true } : p);
+            }
+            if (lastEvent.type === 'SANCTION' && lastEvent.sanctionDuration && lastEvent.sanctionDuration > 0) {
+                processedSanctionIds.current.delete(lastEvent.id);
             }
             if (lastEvent.type === 'SANCTION' && lastEvent.sacrificedPlayerId) {
                 newState.players = newState.players.map(p => p.id === lastEvent.sacrificedPlayerId ? { ...p, active: true } : p);

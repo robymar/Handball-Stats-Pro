@@ -27,6 +27,16 @@ const Bar = ({ value, max, color = 'bg-blue-500' }: { value: number; max: number
     </div>
 );
 
+// Componentes auxiliares extraídos fuera del render para evitar recreación en cada render
+const ZoneCell = ({ z, tdClass }: { z: { goals: number; total: number }; tdClass: string }) => z.total > 0 ? (
+    <td className={tdClass}>
+        <div className="font-bold text-white text-xs">{z.goals}<span className="text-slate-600 font-normal">/{z.total}</span></div>
+        <div className="text-[8px] text-slate-500">{Math.round((z.goals / z.total) * 100)}%</div>
+    </td>
+) : <td className={`${tdClass} text-slate-700`}>—</td>;
+
+const ZoneCellSimple = ({ z, tdClass }: { z: { goals: number; total: number }; tdClass: string }) => z.total > 0 ? <td className={tdClass}><span className="font-bold text-white text-xs">{z.goals}</span><span className="text-slate-600">/{z.total}</span></td> : <td className={`${tdClass} text-slate-700`}>—</td>;
+
 export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, onExportToTemplate, readOnly = false, onViewOnWeb }) => {
     const [periodFilter, setPeriodFilter] = useState<'ALL' | number>('ALL');
     const [statsTab, setStatsTab] = useState<StatsTab>('GENERAL');
@@ -355,12 +365,6 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                         {getSortedPlayers(fieldPlayers, fieldPlayersStatsMap).map(p => {
                                             const s = fieldPlayersStatsMap.get(p.id) || { goals: 0, totalShots: 0, percentage: 0, stats: { sixM: { goals: 0, total: 0 }, nineM: { goals: 0, total: 0 }, wing: { goals: 0, total: 0 }, sevenM: { goals: 0, total: 0 }, fastbreak: { goals: 0, total: 0 } } };
                                             const pct = s.percentage;
-                                            const RZ = ({ z }: { z: { goals: number; total: number } }) => z.total > 0 ? (
-                                                <td className={tdClass}>
-                                                    <div className="font-bold text-white text-xs">{z.goals}<span className="text-slate-600 font-normal">/{z.total}</span></div>
-                                                    <div className="text-[8px] text-slate-500">{Math.round((z.goals / z.total) * 100)}%</div>
-                                                </td>
-                                            ) : <td className={`${tdClass} text-slate-700`}>—</td>;
                                             return (
                                                 <tr key={p.id} onClick={() => setSelectedPlayerId(p.id)} className="hover:bg-slate-700/40 cursor-pointer">
                                                     <td className="px-3 py-2.5 border-r border-slate-700/30">
@@ -375,11 +379,11 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                                     <td className={tdClass}>
                                                         <span className={`font-black text-sm ${pct >= 70 ? 'text-emerald-400' : pct >= 50 ? 'text-yellow-400' : s.totalShots > 0 ? 'text-red-400' : 'text-slate-600'}`}>{s.totalShots > 0 ? `${pct}%` : '—'}</span>
                                                     </td>
-                                                    <RZ z={s.stats.sixM} />
-                                                    <RZ z={s.stats.nineM} />
-                                                    <RZ z={s.stats.wing} />
-                                                    <RZ z={s.stats.sevenM} />
-                                                    <RZ z={s.stats.fastbreak} />
+                                                    <ZoneCell z={s.stats.sixM} tdClass={tdClass} />
+                                                    <ZoneCell z={s.stats.nineM} tdClass={tdClass} />
+                                                    <ZoneCell z={s.stats.wing} tdClass={tdClass} />
+                                                    <ZoneCell z={s.stats.sevenM} tdClass={tdClass} />
+                                                    <ZoneCell z={s.stats.fastbreak} tdClass={tdClass} />
                                                 </tr>
                                             );
                                         })}
@@ -480,16 +484,16 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                         <div className="overflow-x-auto">
                             <table className="w-full text-xs sm:text-sm">
                                 <thead className="bg-slate-900/80 text-slate-500">
-                                    <tr>
-                                        <th className="px-3 py-3 text-left text-[9px] sm:text-[11px] uppercase tracking-wide font-black cursor-pointer hover:text-white" onClick={() => handleSort('PLAYER')}>Jugador</th>
-                                        <th className={`${thClass} text-orange-400`} onClick={() => handleSort('TURNOVERS')}>Tot</th>
-                                        <th className={thClass}>Pas</th>
-                                        <th className={thClass}>Rec</th>
-                                        <th className={thClass}>Pas</th>
-                                        <th className={thClass}>Dob</th>
-                                        <th className={thClass}>Pis</th>
-                                        <th className={thClass}>F.A</th>
-                                    </tr>
+                                        <tr>
+                                            <th className="px-3 py-3 text-left text-[9px] sm:text-[11px] uppercase tracking-wide font-black cursor-pointer hover:text-white" onClick={() => handleSort('PLAYER')}>Jugador</th>
+                                            <th className={`${thClass} text-orange-400`} onClick={() => handleSort('TURNOVERS')}>Tot</th>
+                                            <th className={thClass}>Pas</th>
+                                            <th className={thClass}>Rec</th>
+                                            <th className={thClass}>Pis</th>
+                                            <th className={thClass}>Dob</th>
+                                            <th className={thClass}>Lin</th>
+                                            <th className={thClass}>F.A</th>
+                                        </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-700/50">
                                     {getSortedPlayers(fieldPlayers, fieldPlayersStatsMap).map(p => {
@@ -596,7 +600,6 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                     <tbody className="divide-y divide-slate-700/50">
                                         {opponentStatsMap.size > 0 ? getSortedPlayers(state.opponentPlayers || [], opponentStatsMap).map(p => {
                                             const s = opponentStatsMap.get(p.id) || { goals: 0, totalShots: 0, percentage: 0, turnovers: 0, yellow: 0, twoMin: 0, red: 0, blue: 0, stats: { sixM: { goals: 0, total: 0 }, nineM: { goals: 0, total: 0 }, wing: { goals: 0, total: 0 }, sevenM: { goals: 0, total: 0 }, fastbreak: { goals: 0, total: 0 } } };
-                                            const RZ2 = ({ z }: { z: { goals: number; total: number } }) => z.total > 0 ? <td className={tdClass}><span className="font-bold text-white text-xs">{z.goals}</span><span className="text-slate-600">/{z.total}</span></td> : <td className={`${tdClass} text-slate-700`}>—</td>;
                                             return (
                                                 <tr key={p.id} onClick={() => setSelectedPlayerId(p.id)} className="hover:bg-slate-700/40 cursor-pointer">
                                                     <td className="px-3 py-2.5 border-r border-slate-700/30 font-bold text-slate-200">
@@ -604,10 +607,10 @@ export const StatsView: React.FC<StatsViewProps> = ({ state, onExportToExcel, on
                                                     </td>
                                                     <td className={tdClass}><span className="font-black text-white">{s.goals}</span><span className="text-slate-600">/{s.totalShots}</span></td>
                                                     <td className={tdClass}><span className={`font-bold ${s.percentage >= 60 ? 'text-red-400' : 'text-slate-400'}`}>{s.totalShots > 0 ? `${s.percentage}%` : '—'}</span></td>
-                                                    <RZ2 z={s.stats.sixM} />
-                                                    <RZ2 z={s.stats.nineM} />
-                                                    <RZ2 z={s.stats.wing} />
-                                                    <RZ2 z={s.stats.sevenM} />
+                                                    <ZoneCellSimple z={s.stats.sixM} tdClass={tdClass} />
+                                                    <ZoneCellSimple z={s.stats.nineM} tdClass={tdClass} />
+                                                    <ZoneCellSimple z={s.stats.wing} tdClass={tdClass} />
+                                                    <ZoneCellSimple z={s.stats.sevenM} tdClass={tdClass} />
                                                     <td className={`${tdClass} text-orange-300 font-bold`}>{s.turnovers || '—'}</td>
                                                     <td className={tdClass}>
                                                         <div className="flex gap-0.5 justify-center flex-wrap">

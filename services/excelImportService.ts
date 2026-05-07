@@ -31,8 +31,8 @@ export const parseExcelMatch = async (file: File): Promise<MatchState | null> =>
         let awayTeam = 'Visitante';
         if (teamsPart && teamsPart.includes('vs')) {
             const parts = teamsPart.split('vs');
-            homeTeam = parts[0].trim();
-            awayTeam = parts[1].trim();
+            homeTeam = parts[0]?.trim() || 'Local';
+            awayTeam = parts[1]?.trim() || 'Visitante';
         }
 
         // Cell A2: "Jornada 1 | 01/01/2024 | Location"
@@ -75,7 +75,7 @@ export const parseExcelMatch = async (file: File): Promise<MatchState | null> =>
             // Let's check if the row looks like a player.
 
             // If cell 1 is empty or not a number, check if it's the GK header or end
-            if (!numVal) {
+            if (numVal === null || numVal === undefined || (typeof numVal === 'string' && numVal.trim() === '')) {
                 // Check if next row has data (skip empty row)
                 currentRow++;
                 const nextRowVal = wsGeneral.getRow(currentRow).getCell(1).value;
