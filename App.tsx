@@ -8,6 +8,7 @@ import { BarChart, DonutChart } from './components/ChartComponents.tsx';
 import { PlayerDetailView } from './components/PlayerDetailView.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
+import { ExclusionTracker } from './components/ExclusionTracker.tsx';
 import { INITIAL_PLAYERS, RATING_WEIGHTS, CATEGORY_PRESETS } from './constants.ts';
 import { MatchState, Player, MatchEvent, ShotZone, ShotOutcome, TurnoverType, SanctionType, ShotPlacement, Position, MatchConfig, MatchMetadata, PositiveActionType, Team } from './types.ts';
 import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud, Minus, Timer as TimerIcon, Play, Pause, RotateCcw, Share2, Search, Calendar, MapPin, AlertTriangle, AlertCircle, FileText, Smartphone, Laptop, Printer, Hash, MoreVertical, Copy } from 'lucide-react';
@@ -4469,6 +4470,9 @@ function MainDashboard() {
                         </div>
                     </div>
 
+                    {/* Exclusion Tracker */}
+                    <ExclusionTracker exclusions={state.activeExclusions} gameTime={state.gameTime} />
+
                     <div className="bg-slate-950/50 py-1.5 px-2 shrink-0 border-b border-slate-800/50 flex flex-col items-center justify-center">
                         <div className="flex gap-2 overflow-x-auto w-full no-scrollbar items-center justify-center px-1">
                             {activePlayers.length === 0 ? (
@@ -4544,13 +4548,13 @@ function MainDashboard() {
 
                         <div className="flex gap-2 min-h-[50px] sm:min-h-[80px] shrink-0">
                             <button onClick={() => handleTimeout(false)} className="flex-[0.5] bg-slate-700 hover:bg-slate-600 text-white p-1 sm:p-2 rounded-xl font-bold flex flex-col items-center justify-center gap-0 sm:gap-1 transition-all active:scale-95 text-[10px] sm:text-xs leading-none">
-                                <PauseCircle size={18} className="sm:w-6 sm:h-6" /> T.M.
+                                <PauseCircle size={18} className="sm:w-6 sm:h-6" /> T.M. ({homeTimeouts}/3)
                             </button>
                             <button onClick={startTurnoverFlow} className="flex-[1] bg-handball-orange hover:bg-orange-600 text-white p-2 rounded-xl font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all active:scale-95 text-xs sm:text-xl uppercase"><ArrowRightLeft size={16} className="sm:w-7 sm:h-7" /> <span className="inline">Pérd.</span></button>
                             <button onClick={startPositiveActionFlow} className="flex-[1] bg-green-600 hover:bg-green-500 text-white p-2 rounded-xl font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all active:scale-95 text-xs sm:text-xl uppercase"><ThumbsUp size={16} className="sm:w-7 sm:h-7" /> <span className="inline">Ok</span></button>
                             <button onClick={startSanctionFlow} className="flex-[1] bg-yellow-600 hover:bg-yellow-700 text-white p-2 rounded-xl font-bold flex items-center justify-center gap-1 sm:gap-2 transition-all active:scale-95 text-xs sm:text-xl uppercase"><Ban size={16} className="sm:w-7 sm:h-7" /> <span className="inline">Sanc</span></button>
                             <button onClick={() => handleTimeout(true)} className="flex-[0.5] bg-slate-700 hover:bg-slate-600 text-white p-1 sm:p-2 rounded-xl font-bold flex flex-col items-center justify-center gap-0 sm:gap-1 transition-all active:scale-95 text-[10px] sm:text-xs leading-none">
-                                <PauseCircle size={18} className="sm:w-6 sm:h-6" /> T.M.
+                                <PauseCircle size={18} className="sm:w-6 sm:h-6" /> T.M. ({awayTimeouts}/3)
                             </button>
                         </div>
                     </div>
