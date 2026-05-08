@@ -8,7 +8,7 @@ import { BarChart, DonutChart } from './components/ChartComponents.tsx';
 import { PlayerDetailView } from './components/PlayerDetailView.tsx';
 import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { SplashScreen } from './components/SplashScreen.tsx';
-import { INITIAL_PLAYERS, RATING_WEIGHTS, CATEGORY_PRESETS } from './constants.ts';
+import { INITIAL_PLAYERS, RATING_WEIGHTS } from './constants.ts';
 import { MatchState, Player, MatchEvent, ShotZone, ShotOutcome, TurnoverType, SanctionType, ShotPlacement, Position, MatchConfig, MatchMetadata, PositiveActionType, Team } from './types.ts';
 import { Activity, ArrowRightLeft, Ban, ClipboardList, History, Undo2, Users, Zap, Settings, ShieldAlert, Clock, Trash2, Image as ImageIcon, Plus, Edit2, Save, X, Target, Footprints, Goal, Swords, FileDown, Check, Archive, BarChart3, Trophy, Download, Upload, PauseCircle, ThumbsUp, LogOut, Briefcase, FileSpreadsheet, ArrowLeft, RefreshCw, Cloud, Minus, Timer as TimerIcon, Play, Pause, RotateCcw, Share2, Search, Calendar, MapPin, AlertTriangle, AlertCircle, FileText, Smartphone, Laptop, Printer, Hash, MoreVertical, Copy } from 'lucide-react';
 
@@ -1002,9 +1002,6 @@ interface SetupFormData {
     direction: 'UP' | 'DOWN';
     isOurTeamHome: boolean;
     ownerTeamId?: string;
-    category?: 'ADULT' | 'JUVENILE' | 'YOUTH';
-    ot2Enabled?: boolean;
-    penaltyShootoutEnabled?: boolean;
 }
 
 interface SetupViewProps {
@@ -1152,29 +1149,6 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                 </div>
 
                 <div className="pt-2 sm:pt-3 border-t border-slate-700">
-                    <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase">Categoría RFEBM</h3>
-                    <select
-                        value={form.category || 'ADULT'}
-                        onChange={(e) => {
-                            const val = e.target.value as 'ADULT' | 'JUVENILE' | 'YOUTH';
-                            const preset = CATEGORY_PRESETS[val];
-                            setForm(f => ({
-                                ...f,
-                                category: val,
-                                regularPeriods: preset.regularPeriods,
-                                regularDuration: preset.regularDuration,
-                                otDuration: preset.otDuration,
-                            }));
-                        }}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none mb-3"
-                    >
-                        <option value="ADULT">Adulto (≥16 años) — 2×30 min</option>
-                        <option value="JUVENILE">Juvenil (12-16 años) — 2×25 min</option>
-                        <option value="YOUTH">Infantil (8-12 años) — 2×20 min</option>
-                    </select>
-                </div>
-
-                <div className="pt-2 sm:pt-3 border-t border-slate-700">
                     <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase">Tiempo</h3>
                     <div className="grid grid-cols-2 gap-2 sm:gap-3">
                         <div>
@@ -1219,34 +1193,10 @@ const SetupView: React.FC<SetupViewProps> = ({ form, setForm, onSubmit, logo, on
                         <div>
                             <label className="text-xs font-bold text-slate-400 uppercase block mb-1">Reloj</label>
                             <select name="direction" value={form.direction} onChange={(e) => setForm(f => ({ ...f, direction: e.target.value as 'UP' | 'DOWN' }))} className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 sm:p-3 text-base sm:text-lg text-white focus:border-handball-blue outline-none">
-                                <option value="UP">Ascendente (0 → 30)</option>
-                                <option value="DOWN">Descendente (30 → 0)</option>
+                                <option value="UP">Ascendente (0 &rarr; 30)</option>
+                                <option value="DOWN">Descendente (30 &rarr; 0)</option>
                             </select>
                         </div>
-                    </div>
-                </div>
-
-                <div className="pt-2 sm:pt-3 border-t border-slate-700">
-                    <h3 className="text-sm font-bold text-slate-300 mb-2 uppercase">Opciones avanzadas</h3>
-                    <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={form.ot2Enabled || false}
-                                onChange={(e) => setForm(f => ({ ...f, ot2Enabled: e.target.checked }))}
-                                className="w-4 h-4 rounded border-slate-600"
-                            />
-                            Permitir 2ª prórroga
-                        </label>
-                        <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={form.penaltyShootoutEnabled || false}
-                                onChange={(e) => setForm(f => ({ ...f, penaltyShootoutEnabled: e.target.checked }))}
-                                className="w-4 h-4 rounded border-slate-600"
-                            />
-                            Desempate por 7m
-                        </label>
                     </div>
                 </div>
 

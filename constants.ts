@@ -64,3 +64,17 @@ export const RATING_WEIGHTS = {
   RED: -6,
   BLUE: -10,
 };
+
+// RFEBM Category Presets
+export const CATEGORY_PRESETS = {
+  ADULT: { name: 'Adulto (≥16 años)', regularPeriods: 2, regularDuration: 30, otDuration: 5, descanso: 10 },
+  JUVENILE: { name: 'Juvenil (12-16 años)', regularPeriods: 2, regularDuration: 25, otDuration: 5, descanso: 10 },
+  YOUTH: { name: 'Infantil (8-12 años)', regularPeriods: 2, regularDuration: 20, otDuration: 5, descanso: 10 },
+} as const;
+
+// Timeout rules: Max 3 per team, max 2 per half
+export const TIMEOUT_RULES = {
+  MAX_PER_TEAM: 3,
+  MAX_PER_HALF: 2,
+  DURATION_SECONDS: 60,
+};

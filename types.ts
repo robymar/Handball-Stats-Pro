@@ -154,6 +154,31 @@ export interface MatchConfig {
   regularDuration: number;
   otDuration: number;
   timerDirection: 'UP' | 'DOWN';
+  category?: 'ADULT' | 'JUVENILE' | 'YOUTH';
+  ot2Enabled?: boolean;
+  penaltyShootoutEnabled?: boolean;
+}
+
+export interface ActiveExclusion {
+  id: string;
+  playerId: string;
+  team: 'OUR' | 'OPPONENT';
+  startTime: number;
+  endTime: number;
+  duration: number;
+}
+
+export interface TimeoutState {
+  ourTeamUsed: number;
+  opponentTeamUsed: number;
+  ourTeamPerHalf: Record<number, number>;
+  opponentTeamPerHalf: Record<number, number>;
+}
+
+export interface ExpulsionReport {
+  playerId: string;
+  reason: string;
+  timestamp: number;
 }
 
 export interface TimerSettings {
