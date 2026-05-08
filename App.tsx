@@ -1469,6 +1469,9 @@ function MainDashboard() {
         awayScore: 0,
         events: [],
         resolvedSanctionIds: [], // Init empty
+        activeExclusions: [],
+        timeoutState: { ourTeamUsed: 0, opponentTeamUsed: 0, ourTeamPerHalf: {}, opponentTeamPerHalf: {} },
+        expulsionReports: [],
         players: INITIAL_PLAYERS,
         opponentPlayers: [], // Init opponent roster
     });
@@ -3455,7 +3458,22 @@ function MainDashboard() {
                 // Remove: Do not deactivate Immediately for RED/BLUE. They serve 2-min wait.
                 // Logic moved to End of Sanction (handlePlayerEnterAfterSanction)
             } const fullEvent: MatchEvent = { ...eventData, period: s.currentPeriod, homeScoreSnapshot: newHomeScore, awayScoreSnapshot: newAwayScore };
-            return { ...s, homeScore: newHomeScore, awayScore: newAwayScore, events: [fullEvent, ...s.events], players: updatedPlayers };
+
+            // Track active exclusions for RED and 2MIN
+            const newExclusions = [...(s.activeExclusions || [])];
+            if (eventData.type === 'SANCTION' && (eventData.sanctionType === SanctionType.RED || eventData.sanctionType === SanctionType.TWO_MIN)) {
+                const exclusionDuration = eventData.sanctionType === SanctionType.RED ? 120 : 120;
+                newExclusions.push({
+                    id: generateId(),
+                    playerId: eventData.playerId || '',
+                    team: eventData.isOpponent ? 'OPPONENT' : 'OUR',
+                    startTime: s.gameTime,
+                    endTime: s.gameTime + exclusionDuration,
+                    duration: exclusionDuration
+                });
+            }
+
+            return { ...s, homeScore: newHomeScore, awayScore: newAwayScore, events: [fullEvent, ...s.events], players: updatedPlayers, activeExclusions: newExclusions };
         });
         setMode(InputMode.IDLE);
         setPendingEvent({});

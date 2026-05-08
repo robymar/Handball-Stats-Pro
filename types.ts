@@ -197,6 +197,9 @@ export interface MatchState {
   awayScore: number;
   events: MatchEvent[];
   resolvedSanctionIds: string[]; // Track resolved sanctions to prevent loops
+  activeExclusions?: ActiveExclusion[];
+  timeoutState?: TimeoutState;
+  expulsionReports?: ExpulsionReport[];
   players: Player[];
   opponentPlayers: Player[]; // New: Roster for the opponent team
 }
