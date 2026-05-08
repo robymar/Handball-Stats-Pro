@@ -2192,7 +2192,7 @@ function MainDashboard() {
             // JSON Import (Legacy)
             const fileReader = new FileReader();
             fileReader.readAsText(file, "UTF-8");
-            fileReader.onload = (event) => {
+            fileReader.onload = async (event) => {
                 try {
                     const parsed = JSON.parse(event.target?.result as string);
                     if (currentTeam) {
@@ -2204,8 +2204,9 @@ function MainDashboard() {
                     } else {
                         alert("Archivo inválido.");
                     }
-                } catch (error) {
-                    alert("Error JSON.");
+                } catch (e) {
+                    console.error(e);
+                    alert("Error procesando JSON.");
                 }
             };
         }
@@ -3563,14 +3564,63 @@ function MainDashboard() {
 
         if (mode === InputMode.SELECT_OUR_GK_FOR_SAVE) { recordEvent({ ...pendingEvent, id: generateId(), playerId } as any); return; }
         if (pendingEvent.type === 'SANCTION') {
-            if (pendingEvent.sanctionType === SanctionType.TWO_MIN) {
+            // --- NORMA 16: SANCIONES PROGRESIVAS ---
+            const playerSanctions = state.events.filter(e => e.playerId === playerId && e.type === 'SANCTION');
+            const hasYellow = playerSanctions.some(e => e.sanctionType === SanctionType.YELLOW);
+            const hasTwoMin = playerSanctions.some(e => e.sanctionType === SanctionType.TWO_MIN);
+            const hasRed = playerSanctions.some(e => e.sanctionType === SanctionType.RED);
+            const hasBlue = playerSanctions.some(e => e.sanctionType === SanctionType.BLUE);
+
+            if (hasRed || hasBlue) {
+                alert(`⛔ El jugador ${player.name} ya está descalificado. No puede recibir más sanciones.`);
+                return;
+            }
+
+            let adjustedSanctionType = pendingEvent.sanctionType;
+
+            if (pendingEvent.sanctionType === SanctionType.YELLOW && hasYellow) {
+                adjustedSanctionType = SanctionType.TWO_MIN;
+                alert(`⚠️ Normativa Regla 16: ${player.name} ya tiene advertencia (amarilla). La siguiente falta debe sancionarse con 2 minutos de exclusión.`);
+            } else if ((pendingEvent.sanctionType === SanctionType.YELLOW || pendingEvent.sanctionType === SanctionType.TWO_MIN) && hasTwoMin) {
+                adjustedSanctionType = SanctionType.RED;
+                alert(`⚠️ Normativa Regla 16: ${player.name} ya tiene exclusión (2 min). La siguiente falta debe sancionarse con descalificación (roja).`);
+            }
+
+            const adjustedEvent = { ...pendingEvent, sanctionType: adjustedSanctionType };
+
+            if (adjustedSanctionType === SanctionType.TWO_MIN) {
+                // --- NORMA 16: 3 EXCLUSIONES SIMULTÁNEAS = DESCALIFICACIÓN ---
+                const activeExclusions = state.events.filter(e =>
+                    e.type === 'SANCTION' &&
+                    e.sanctionType === SanctionType.TWO_MIN &&
+                    e.playerId &&
+                    e.playerId !== playerId &&
+                    getSanctionRemainingTime(e, state.gameTime, state.config.timerDirection, state.currentPeriod, state.config).remaining > 0
+                ).length;
+
+                if (activeExclusions >= 2) {
+                    alert(`🚨 Normativa Regla 16: ¡3 exclusiones simultáneas! ${player.name} es DESCATALOGADO automáticamente (no puede volver).`);
+                    recordEvent({ ...adjustedEvent, playerId, sanctionType: SanctionType.RED, id: generateId() } as any);
+                    return;
+                }
+
                 const isStaff = player.position === Position.STAFF || player.position === Position.COACH;
-                const eventToRecord = { ...pendingEvent, playerId, sanctionDuration: 2 };
+                const eventToRecord = { ...adjustedEvent, playerId, sanctionDuration: 2 };
                 if (isStaff) { setPendingEvent(eventToRecord); setMode(InputMode.SELECT_PLAYER_TO_SACRIFICE); }
                 else { recordEvent({ ...eventToRecord, id: generateId() } as any); }
                 return;
             }
-            setPendingEvent(prev => ({ ...prev, playerId })); setMode(InputMode.SELECT_SANCTION_DURATION); return;
+
+            if (adjustedSanctionType === SanctionType.RED || adjustedSanctionType === SanctionType.BLUE) {
+                // Descalificación: registrar directamente (sin duración, el jugador queda fuera)
+                recordEvent({ ...adjustedEvent, playerId, id: generateId() } as any);
+                return;
+            }
+
+            // Amarilla: seguir a selección de duración (0 min)
+            setPendingEvent(prev => ({ ...prev, playerId, sanctionType: adjustedSanctionType }));
+            setMode(InputMode.SELECT_SANCTION_DURATION);
+            return;
         }
         if (pendingEvent.type === 'SHOT') {
             if (pendingEvent.shotOutcome === ShotOutcome.GOAL || pendingEvent.shotOutcome === ShotOutcome.SAVE) {
